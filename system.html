@@ -565,6 +565,33 @@
     #slideCounter { bottom: 6px; font-size: 11px; padding: 3px 10px; }
   }
 
+  /* ===== קריאוּת בטלפון: השקף מוקטן פי 2-3, אז הטקסטים בתוכו מוגדלים ===== */
+  @media (max-width: 700px), (max-height: 520px) {
+    .slide .s-kicker { font-size: 22px; }
+    .slide h2 { font-size: 44px; }
+    .slide .s-sub { font-size: 24px; }
+    .slide.cover h2 { font-size: 60px; }
+    .slide.cover .s-sub { font-size: 28px; }
+    .kpi .k-label { font-size: 20px; }
+    .kpi .k-value { font-size: 44px; }
+    .kpi .k-note { font-size: 18px; }
+    .slide .s-foot { font-size: 18px; }
+    .slide .s-foot img { height: 26px; }
+    .legend { font-size: 20px; }
+    .legend .lg-swatch { width: 17px; height: 17px; }
+    .tbl-btn { font-size: 18px; padding: 7px 16px; top: -46px; }
+    .table-overlay table { font-size: 19px; }
+    .brand-cover .bc-title h2 { font-size: 64px; }
+    .brand-cover .bc-title .bc-sub { font-size: 26px; }
+
+    /* טקסטים בתוך הגרפים (SVG) */
+    .slide svg text.cat  { font-size: 20px !important; }
+    .slide svg text.axis { font-size: 18px !important; }
+    .slide svg text.val  { font-size: 20px !important; }
+    /* בגרף המקובץ התוויות צפופות מדי בהגדלה — הערכים בטבלה ובמקרא */
+    .slide svg text.valg { display: none; }
+  }
+
   /* כפתור מסך מלא — מוצג בטלפונים לצד מונה השקפים */
   #fsBtn {
     position: fixed;
@@ -983,7 +1010,7 @@ function columnChart(body, opts) {
   for (const t of ticks) {
     svg.appendChild(svgEl('line', { x1: padRight, x2: CW - padLeft, y1: y(t), y2: y(t),
       stroke: t === 0 ? css('--baseline') : css('--grid'), 'stroke-width': 1 }));
-    const lbl = svgEl('text', { x: CW - padLeft + 10, y: y(t) + 4, 'font-size': 13,
+    const lbl = svgEl('text', { class: 'axis', x: CW - padLeft + 10, y: y(t) + 4, 'font-size': 13,
       fill: css('--muted'), 'text-anchor': 'start' });
     lbl.textContent = fmtAxis(t);
     svg.appendChild(lbl);
@@ -1002,13 +1029,13 @@ function columnChart(body, opts) {
 
     // תווית ערך על הכיפה
     if (n <= 12) {
-      const val = svgEl('text', { x: cx, y: barTop - 8, 'font-size': 13.5, 'font-weight': 700,
+      const val = svgEl('text', { class: 'val', x: cx, y: barTop - 8, 'font-size': 13.5, 'font-weight': 700,
         fill: css('--ink-2'), 'text-anchor': 'middle' });
       val.textContent = fmt(v);
       svg.appendChild(val);
     }
     // תווית קטגוריה
-    const cat = svgEl('text', { x: cx, y: padTop + plotH + 24, 'font-size': 13.5,
+    const cat = svgEl('text', { class: 'cat', x: cx, y: padTop + plotH + 24, 'font-size': 13.5,
       fill: css('--ink-2'), 'text-anchor': 'middle' });
     cat.textContent = opts.labels[i];
     svg.appendChild(cat);
@@ -1063,7 +1090,7 @@ function groupedColumnChart(body, opts) {
   for (const t of ticks) {
     svg.appendChild(svgEl('line', { x1: padRight, x2: CW - padLeft, y1: y(t), y2: y(t),
       stroke: t === 0 ? css('--baseline') : css('--grid'), 'stroke-width': 1 }));
-    const lbl = svgEl('text', { x: CW - padLeft + 10, y: y(t) + 4, 'font-size': 13,
+    const lbl = svgEl('text', { class: 'axis', x: CW - padLeft + 10, y: y(t) + 4, 'font-size': 13,
       fill: css('--muted'), 'text-anchor': 'start' });
     lbl.textContent = fmtAxis(t);
     svg.appendChild(lbl);
@@ -1083,13 +1110,13 @@ function groupedColumnChart(body, opts) {
       svg.appendChild(bar);
       bars.push(bar);
       if (n * k <= 15) {
-        const val = svgEl('text', { x: x0 + barW / 2, y: barTop - 7, 'font-size': 12.5, 'font-weight': 700,
+        const val = svgEl('text', { class: 'valg', x: x0 + barW / 2, y: barTop - 7, 'font-size': 12.5, 'font-weight': 700,
           fill: css('--ink-2'), 'text-anchor': 'middle' });
         val.textContent = fmt(v);
         svg.appendChild(val);
       }
     });
-    const cat = svgEl('text', { x: cx, y: padTop + plotH + 24, 'font-size': 13.5,
+    const cat = svgEl('text', { class: 'cat', x: cx, y: padTop + plotH + 24, 'font-size': 13.5,
       fill: css('--ink-2'), 'text-anchor': 'middle' });
     cat.textContent = label;
     svg.appendChild(cat);
@@ -1132,7 +1159,7 @@ function barChartH(body, opts) {
     const xx = x0 - w(t);
     svg.appendChild(svgEl('line', { x1: xx, x2: xx, y1: padTop, y2: padTop + plotH,
       stroke: t === 0 ? css('--baseline') : css('--grid'), 'stroke-width': 1 }));
-    const lbl = svgEl('text', { x: xx, y: padTop + plotH + 20, 'font-size': 12.5,
+    const lbl = svgEl('text', { class: 'axis', x: xx, y: padTop + plotH + 20, 'font-size': 12.5,
       fill: css('--muted'), 'text-anchor': 'middle' });
     lbl.textContent = fmtAxis(t);
     svg.appendChild(lbl);
@@ -1156,13 +1183,13 @@ function barChartH(body, opts) {
       if (sp > 14) name = name.slice(0, sp);
       name = name.trim() + '…';
     }
-    const cat = svgEl('text', { x: x0 + 12, y: cy + 4.5, 'font-size': 14, 'font-weight': 600,
+    const cat = svgEl('text', { class: 'cat', x: x0 + 12, y: cy + 4.5, 'font-size': 14, 'font-weight': 600,
       fill: css('--ink'), 'text-anchor': 'start' });
     cat.textContent = name;
     svg.appendChild(cat);
 
     // ערך בקצה העמודה
-    const val = svgEl('text', { x: x0 - bw - 8, y: cy + 4.5, 'font-size': 13, 'font-weight': 700,
+    const val = svgEl('text', { class: 'val', x: x0 - bw - 8, y: cy + 4.5, 'font-size': 13, 'font-weight': 700,
       fill: css('--ink-2'), 'text-anchor': 'end' });
     val.textContent = fmt(d.val);
     svg.appendChild(val);
@@ -1204,7 +1231,7 @@ function lineChart(body, opts) {
     const t = domainMin + ((top - domainMin) / tickCount) * k;
     svg.appendChild(svgEl('line', { x1: padRight, x2: CW - padLeft, y1: y(t), y2: y(t),
       stroke: k === 0 ? css('--baseline') : css('--grid'), 'stroke-width': 1 }));
-    const lbl = svgEl('text', { x: CW - padLeft + 10, y: y(t) + 4, 'font-size': 13,
+    const lbl = svgEl('text', { class: 'axis', x: CW - padLeft + 10, y: y(t) + 4, 'font-size': 13,
       fill: css('--muted'), 'text-anchor': 'start' });
     lbl.textContent = fmt(t);
     svg.appendChild(lbl);
@@ -1220,11 +1247,11 @@ function lineChart(body, opts) {
   opts.values.forEach((v, i) => {
     svg.appendChild(svgEl('circle', { cx: x(i), cy: y(v), r: 7, fill: color,
       stroke: css('--slide-surface'), 'stroke-width': 2 }));
-    const val = svgEl('text', { x: x(i), y: y(v) - 15, 'font-size': 14, 'font-weight': 700,
+    const val = svgEl('text', { class: 'val', x: x(i), y: y(v) - 15, 'font-size': 14, 'font-weight': 700,
       fill: css('--ink-2'), 'text-anchor': 'middle' });
     val.textContent = fmt(v);
     svg.appendChild(val);
-    const cat = svgEl('text', { x: x(i), y: padTop + plotH + 24, 'font-size': 13.5,
+    const cat = svgEl('text', { class: 'cat', x: x(i), y: padTop + plotH + 24, 'font-size': 13.5,
       fill: css('--ink-2'), 'text-anchor': 'middle' });
     cat.textContent = opts.labels[i];
     svg.appendChild(cat);
