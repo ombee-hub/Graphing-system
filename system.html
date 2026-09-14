@@ -514,23 +514,6 @@
     to   { transform: rotate(360deg); }
   }
 
-  /* רמז לסיבוב הטלפון — מוצג רק במסך צר במצב אנכי כשמצגת פעילה */
-  #rotateHint {
-    display: none;
-    position: fixed;
-    top: 64px; left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255,202,15,.95);
-    color: var(--brand-dark);
-    font-size: 13.5px;
-    font-weight: 700;
-    border-radius: 999px;
-    padding: 8px 18px;
-    z-index: 80;
-    box-shadow: 0 6px 16px rgba(0,0,0,.3);
-    white-space: nowrap;
-  }
-
   /* ===================== התאמה לטלפון ===================== */
   @media (max-width: 700px) {
     header.topbar { height: 48px; gap: 7px; padding: 0 10px; }
@@ -553,9 +536,6 @@
     #nextBtn { left: 12px; }
     .nav-btn svg { width: 18px; height: 18px; }
     #slideCounter { bottom: 22px; font-size: 12px; padding: 4px 12px; }
-  }
-  @media (max-width: 700px) and (orientation: portrait) {
-    #stage.active ~ #rotateHint { display: block; }
   }
 </style>
 </head>
@@ -607,7 +587,6 @@
 
 <!-- במת מצגת -->
 <section id="stage"></section>
-<div id="rotateHint">💡 סובבו את הטלפון לרוחב לתצוגה מיטבית</div>
 <button class="nav-btn" id="prevBtn" aria-label="שקף קודם">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
 </button>
@@ -2007,6 +1986,16 @@ let current = 0;
 
 function fitSlides() {
   const narrow = window.innerWidth <= 700;
+  const portrait = window.innerHeight > window.innerWidth;
+  const rotated = narrow && portrait; // טלפון אנכי: מסובבים את השקף כדי שימלא את המסך
+  stage.classList.toggle('rotated', rotated);
+  if (rotated) {
+    const availW = stage.clientHeight - 100; // הופך לרוחב השקף אחרי הסיבוב
+    const availH = stage.clientWidth - 14;
+    const scale = Math.min(availW / 1280, availH / 720);
+    slides.forEach(sh => { sh.s.style.transform = `rotate(90deg) scale(${scale})`; });
+    return;
+  }
   // בטלפון כפתורי הניווט יושבים למטה, אז השקף מקבל כמעט את כל הרוחב
   const availW = stage.clientWidth - (narrow ? 12 : 140);
   const availH = stage.clientHeight - (narrow ? 64 : 50);
@@ -2028,6 +2017,13 @@ stage.addEventListener('touchend', e => {
   const dx = e.changedTouches[0].clientX - touchX;
   const dy = e.changedTouches[0].clientY - touchY;
   touchX = null;
+  if (stage.classList.contains('rotated')) {
+    // שקף מסובב: החלקה למטה = הבא, למעלה = הקודם (וגם אופקית עדיין עובדת)
+    if (Math.abs(dy) >= 50 && Math.abs(dy) > Math.abs(dx) * 1.5) {
+      if (dy > 0) goTo(current + 1); else goTo(current - 1);
+      return;
+    }
+  }
   if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // לא החלקה אופקית
   if (dx > 0) goTo(current + 1); else goTo(current - 1);
 }, { passive: true });
