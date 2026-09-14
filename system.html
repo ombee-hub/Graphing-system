@@ -2,7 +2,7 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>מערכת גרפים</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffca0f'/%3E%3Cg stroke='%233c4d5c' stroke-width='6' stroke-linecap='round'%3E%3Cline x1='16' y1='48' x2='16' y2='32'/%3E%3Cline x1='28' y1='48' x2='28' y2='18'/%3E%3Cline x1='40' y1='48' x2='40' y2='28'/%3E%3Cline x1='52' y1='48' x2='52' y2='14'/%3E%3C/g%3E%3C/svg%3E">
 <script>
@@ -557,9 +557,10 @@
     #uploadScreen .upload-logo { height: 48px; flex: none; }
     #uploadScreen .dropzone { padding: 20px 16px; flex: none; }
     #uploadScreen .upload-copyright { position: static; margin-top: 6px; flex: none; }
+    /* מגרעת מצלמה (notch) בטלפונים לרוחב — מרחיקים את הכפתורים ממנה */
     .nav-btn { width: 38px; height: 38px; top: 50%; bottom: auto; }
-    #prevBtn { right: 8px; }
-    #nextBtn { left: 8px; }
+    #prevBtn { right: max(8px, env(safe-area-inset-right)); }
+    #nextBtn { left: max(8px, env(safe-area-inset-left)); }
     .nav-btn svg { width: 17px; height: 17px; }
     #slideCounter { bottom: 6px; font-size: 11px; padding: 3px 10px; }
   }
@@ -2057,16 +2058,43 @@ function fitSlides() {
 window.addEventListener('resize', fitSlides);
 window.addEventListener('orientationchange', () => setTimeout(fitSlides, 250));
 
-/* מסך מלא — מפנה גם את שורת הכתובת של הדפדפן בטלפון */
+/* מסך מלא — מפנה גם את שורת הכתובת של הדפדפן בטלפון.
+   באנדרואיד (Chrome) גם נועלים את הכיוון לרוחב; באייפון אין תמיכה במסך מלא
+   והכפתור מוסתר. */
 const fsBtn = document.getElementById('fsBtn');
+const fullscreenSupported = !!(document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen);
+
+async function enterFullscreen() {
+  const el = document.documentElement;
+  try {
+    if (el.requestFullscreen) await el.requestFullscreen();
+    else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+  } catch (e) { return; }
+  // אנדרואיד: נעילת המסך לרוחב — המצגת מתהפכת אוטומטית לתצוגה מלאה
+  try {
+    if (screen.orientation && screen.orientation.lock) await screen.orientation.lock('landscape');
+  } catch (e) { /* לא נתמך — לא נורא */ }
+}
+function exitFullscreen() {
+  try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+  if (document.exitFullscreen) document.exitFullscreen();
+  else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+}
 fsBtn.addEventListener('click', () => {
-  if (!document.fullscreenElement) {
-    (document.documentElement.requestFullscreen ? document.documentElement.requestFullscreen() : Promise.reject()).catch(() => {});
-  } else {
-    document.exitFullscreen();
-  }
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) enterFullscreen();
+  else exitFullscreen();
 });
 document.addEventListener('fullscreenchange', () => setTimeout(fitSlides, 150));
+document.addEventListener('webkitfullscreenchange', () => setTimeout(fitSlides, 150));
+
+/* פס הכתובת של Chrome באנדרואיד משנה את גובה החלון תוך כדי גלילה —
+   מאזינים ל-visualViewport כדי שהשקף תמיד יתאים */
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    clearTimeout(window.__vvT);
+    window.__vvT = setTimeout(fitSlides, 120);
+  });
+}
 
 /* החלקת אצבע בין שקפים — כיוון RTL: החלקה ימינה = השקף הבא */
 let touchX = null, touchY = null;
@@ -2139,7 +2167,7 @@ function buildDeck(datasets) {
   prevBtn.classList.add('show');
   nextBtn.classList.add('show');
   counter.classList.add('show');
-  fsBtn.classList.add('show');
+  if (fullscreenSupported) fsBtn.classList.add('show'); // באייפון אין מסך מלא — הכפתור מוסתר
   newFilesBtn.style.display = '';
   pptBtn.style.display = '';
   fitSlides();
