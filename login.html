@@ -238,12 +238,18 @@
 
   .footer-note {
     margin-top: 26px;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
     font-size: 12.5px;
     color: var(--muted);
     border-top: 1px solid var(--border);
     padding-top: 16px;
   }
+  .footer-note a { display: flex; opacity: .85; transition: opacity .12s; }
+  .footer-note a:hover { opacity: 1; }
+  .footer-note img { height: 20px; display: block; }
 
   /* ===================== התאמה לטלפון ===================== */
   @media (max-width: 480px) {
@@ -302,7 +308,12 @@
     <button type="submit" class="btn-login" id="loginBtn">התחברות למערכת</button>
   </form>
 
-  <p class="footer-note">© 2026 כל הזכויות שמורות ל־Novolog Ltd</p>
+  <p class="footer-note">
+    <span>© 2026 כל הזכויות שמורות ל־</span>
+    <a href="https://novologlogistics.co.il" target="_blank" rel="noopener" title="לאתר נובולוג לוגיסטיקה">
+      <img src="novolog-logo.png" alt="Novolog Logistics">
+    </a>
+  </p>
 </main>
 
 <script>

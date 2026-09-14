@@ -151,10 +151,16 @@
     position: absolute;
     bottom: 18px;
     left: 0; right: 0;
-    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
     font-size: 13px;
     color: rgba(255,255,255,.5);
   }
+  .upload-copyright a { display: flex; opacity: .75; transition: opacity .12s; }
+  .upload-copyright a:hover { opacity: 1; }
+  .upload-copyright img { height: 22px; display: block; }
 
   /* ===================== שקף פתיחה ממותג ===================== */
   .slide.brand-cover {
@@ -591,7 +597,12 @@
   </div>
   <div id="fileList"></div>
   <button id="buildBtn" disabled>יצירת מצגת</button>
-  <div class="upload-copyright">© 2026 כל הזכויות שמורות ל־Novolog Ltd</div>
+  <div class="upload-copyright">
+    <span>© 2026 כל הזכויות שמורות ל־</span>
+    <a href="https://novologlogistics.co.il" target="_blank" rel="noopener" title="לאתר נובולוג לוגיסטיקה">
+      <img src="novolog-logo-white.png" alt="Novolog Logistics">
+    </a>
+  </div>
 </section>
 
 <!-- במת מצגת -->
