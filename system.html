@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -16,6 +16,7 @@
   })();
 </script>
 <script src="lib/xlsx.full.min.js"></script>
+<script src="lib/pptxgen.bundle.js"></script>
 <style>
   /* פונט Assistant — מקומי, עובד גם בלי אינטרנט (פונט משתנה, כל המשקלים) */
   @font-face {
@@ -115,6 +116,13 @@
     border: none;
     font-weight: 800;
   }
+  .topbar button.ppt-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .topbar button.ppt-btn svg { width: 17px; height: 17px; flex: none; }
+  .topbar button.ppt-btn:disabled { opacity: .55; cursor: wait; }
 
   /* ===================== מסך העלאת קבצים ===================== */
   #uploadScreen {
@@ -565,6 +573,14 @@
   </div>
   <h1>מערכת הגרפים</h1>
   <div class="spacer"></div>
+  <button id="pptBtn" class="ppt-btn" style="display:none" title="הורדת המצגת כקובץ PowerPoint">
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="15" height="19" rx="2.5" fill="#C43E1C"/>
+      <path d="M14.5 6.5 H20 a1.5 1.5 0 0 1 1.5 1.5 V16 a1.5 1.5 0 0 1 -1.5 1.5 H14.5 Z" fill="#E8734A"/>
+      <text x="9" y="16.5" text-anchor="middle" font-size="12.5" font-weight="800" fill="#ffffff" font-family="Arial, sans-serif">P</text>
+    </svg>
+    <span>PowerPoint</span>
+  </button>
   <button id="menuBtn" style="display:none">☰ נושאים</button>
   <button id="newFilesBtn" style="display:none">קבצים חדשים</button>
   <button id="logoutBtn">התנתקות</button>
@@ -1683,6 +1699,252 @@ function buildGenericSlides(d) {
 }
 
 /* ============================================================
+   ייצוא ל-PowerPoint — גרפים חיים (ניתנים לעריכה), לא תמונות
+   ============================================================ */
+/* טעינת תמונה כ-Data URL לצורך הטמעה בקובץ (null אם לא זמינה) */
+function imgToDataURL(src) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        c.getContext('2d').drawImage(img, 0, 0);
+        resolve(c.toDataURL('image/png'));
+      } catch (e) { resolve(null); }
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
+let currentDatasets = [];
+
+async function exportToPptx() {
+  const pptx = new PptxGenJS();
+  pptx.layout = 'LAYOUT_WIDE';
+  const C = { bg: '37485A', brand: '3C4D5C', accent: 'FFCA0F', s1: '2F66A5', s2: 'B8860B', s3: '159D7F',
+              ink2: '52616E', muted: '8794A0', grid: 'E7EAEE', green: '3AAB4F', blue: '4BB8E8' };
+  const FONT = 'Arial';
+  const W = 13.33, H = 7.5;
+
+  const footer = s => s.addText('Novolog Ltd · מערכת הגרפים', {
+    x: 0.4, y: H - 0.45, w: 4, h: 0.3, fontSize: 10, color: C.muted, fontFace: FONT, align: 'left' });
+
+  const topBar = s => {
+    s.addShape(pptx.ShapeType.rect, { x: W * 0.72, y: 0, w: W * 0.28, h: 0.09, fill: { color: C.accent }, line: { type: 'none' } });
+    s.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: W * 0.72, h: 0.09, fill: { color: C.brand }, line: { type: 'none' } });
+  };
+
+  function chartSlide(kicker, title) {
+    const s = pptx.addSlide();
+    topBar(s);
+    s.addText(kicker, { x: 0.5, y: 0.22, w: W - 1, h: 0.35, fontSize: 13, color: C.ink2, bold: true, align: 'right', fontFace: FONT, rtlMode: true });
+    s.addText(title, { x: 0.5, y: 0.55, w: W - 1, h: 0.6, fontSize: 26, color: C.brand, bold: true, align: 'right', fontFace: FONT, rtlMode: true });
+    footer(s);
+    return s;
+  }
+
+  const AREA = { x: 0.5, y: 1.45, w: W - 1.0, h: 5.35 };
+  const baseOpts = {
+    ...AREA,
+    chartColors: [C.s1],
+    catAxisLabelColor: C.ink2, valAxisLabelColor: C.ink2,
+    catAxisLabelFontSize: 11, valAxisLabelFontSize: 10,
+    catAxisLabelFontFace: FONT, valAxisLabelFontFace: FONT,
+    dataLabelFontFace: FONT, dataLabelColor: C.ink2, dataLabelFontSize: 10,
+    valGridLine: { color: C.grid, size: 1 }, catGridLine: { style: 'none' },
+    showLegend: false, showTitle: false,
+  };
+  const col = (s, labels, values, o = {}) =>
+    s.addChart(pptx.ChartType.bar, [{ name: o.seriesName || 'ערך', labels, values }],
+      { ...baseOpts, barDir: 'col', showValue: true, ...o });
+  const hbar = (s, items, o = {}) => {
+    const rev = [...items].reverse(); // בגרף אופקי הקטגוריה הראשונה למטה — הופכים כדי שהגדול יהיה למעלה
+    s.addChart(pptx.ChartType.bar, [{ name: o.seriesName || 'ערך', labels: rev.map(i => i.name), values: rev.map(i => i.val) }],
+      { ...baseOpts, barDir: 'bar', showValue: true, ...o });
+  };
+  const lineP = (s, labels, values, o = {}) =>
+    s.addChart(pptx.ChartType.line, [{ name: o.seriesName || 'ערך', labels, values }],
+      { ...baseOpts, lineSize: 2, lineDataSymbol: 'circle', lineDataSymbolSize: 8, showValue: true, dataLabelPosition: 't', ...o });
+
+  function kpiBoxes(s, kpis) {
+    const bw = 2.85, gap = 0.25;
+    const total = kpis.length * bw + (kpis.length - 1) * gap;
+    const startR = (W - total) / 2;
+    kpis.forEach((k, i) => {
+      const bx = W - startR - (i + 1) * bw - i * gap; // RTL: הראשון מימין
+      const runs = [
+        { text: k.label + '\n', options: { fontSize: 12, color: C.ink2, bold: true, breakLine: true } },
+        { text: k.value, options: { fontSize: 26, color: C.brand, bold: true } },
+      ];
+      if (k.note) runs.push({ text: '\n' + k.note, options: { fontSize: 10, color: C.muted } });
+      s.addText(runs, { shape: pptx.ShapeType.roundRect, rectRadius: 0.08,
+        fill: { color: 'F6F8FA' }, line: { color: C.grid, width: 1 },
+        x: bx, y: 4.3, w: bw, h: 1.9, align: 'center', valign: 'middle', fontFace: FONT, rtlMode: true });
+    });
+  }
+
+  function sectionCover(title, period, kpis) {
+    const s = pptx.addSlide();
+    topBar(s);
+    s.addText('Novolog Ltd', { x: 0.6, y: 1.35, w: W - 1.2, h: 0.4, fontSize: 15, color: C.ink2, bold: true, align: 'right', fontFace: FONT });
+    s.addText(title, { x: 0.6, y: 1.8, w: W - 1.2, h: 1.0, fontSize: 38, color: C.brand, bold: true, align: 'right', fontFace: FONT, rtlMode: true });
+    s.addText(period, { x: 0.6, y: 2.9, w: W - 1.2, h: 0.5, fontSize: 18, color: C.ink2, align: 'right', fontFace: FONT, rtlMode: true });
+    kpiBoxes(s, kpis);
+    footer(s);
+  }
+
+  /* ---- שקף פתיחה ממותג ---- */
+  const cover = pptx.addSlide();
+  cover.background = { color: C.bg };
+  const logoData = await imgToDataURL('novolog-logo-white.png');
+  if (logoData) cover.addImage({ data: logoData, x: 0.55, y: 0.5, w: 2.55, h: 1.08 });
+  cover.addText('מצגת נתונים', { x: 0.6, y: 2.9, w: W - 1.2, h: 1.1, fontSize: 48, color: 'FFFFFF', bold: true, align: 'right', fontFace: FONT, rtlMode: true });
+  const secNames = [...new Set(currentDatasets.map(d =>
+    d.kind === 'damaged' ? 'העברות למחסן פגומים' :
+    d.kind === 'inventory' ? 'ספירות מלאי' :
+    d.kind === 'calls' ? 'קריאות שירות' : 'נתונים'))];
+  const dateStr = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
+  cover.addText(secNames.join(' · '), { x: 0.6, y: 4.05, w: W - 1.2, h: 0.5, fontSize: 18, color: 'D9DEE3', align: 'right', fontFace: FONT, rtlMode: true });
+  cover.addText('הופק בתאריך ' + dateStr, { x: 0.6, y: 4.5, w: W - 1.2, h: 0.5, fontSize: 14, color: 'AEB9C2', align: 'right', fontFace: FONT, rtlMode: true });
+  cover.addShape(pptx.ShapeType.rect, { x: 0, y: H - 1.35, w: W, h: 1.35, fill: { color: 'FFFFFF' }, line: { type: 'none' } });
+  cover.addShape(pptx.ShapeType.rect, { x: 0, y: H - 1.12, w: 0.65, h: 1.12, fill: { color: C.accent }, line: { type: 'none' } });
+  cover.addShape(pptx.ShapeType.rect, { x: 0.85, y: H - 1.12, w: 2.1, h: 1.12, fill: { color: C.green }, line: { type: 'none' } });
+  cover.addShape(pptx.ShapeType.rect, { x: 3.15, y: H - 1.12, w: W - 3.3, h: 1.12, fill: { color: C.blue }, line: { type: 'none' } });
+
+  /* ---- פרקים לפי סוג דוח ---- */
+  const kindCounts = {};
+  currentDatasets.forEach(d => { kindCounts[d.kind] = (kindCounts[d.kind] || 0) + 1; });
+  const baseT = { damaged: 'העברות למחסן פגומים', inventory: 'ספירות מלאי', calls: 'קריאות שירות' };
+  const short = (fn, base) => {
+    let t = fn.replace(/\.(xlsx|xls|xlsm|csv)$/i, '').trim();
+    if (base && t.startsWith(base)) t = t.slice(base.length).trim();
+    return (t.length > 32 ? t.slice(0, 31).trim() + '…' : t) || fn;
+  };
+  const M_FMT = '#,##0.0,,"M"', M_AXIS = '#,##0,,"M"', PCT_FMT = '0.0"%"', INT_FMT = '#,##0';
+
+  for (const d of currentDatasets) {
+    let sec = baseT[d.kind] || d.fileName.replace(/\.(xlsx|xls|xlsm|csv)$/i, '');
+    if (baseT[d.kind] && kindCounts[d.kind] > 1) sec += ' — ' + short(d.fileName, baseT[d.kind]);
+
+    if (d.kind === 'damaged') {
+      const period = periodLabel(d.months);
+      const kpis = [
+        { label: 'שווי העברות כולל (SUM)', value: nisCompact(d.sumTotal), note: 'לפי מחירון יַרְפָּא' },
+        { label: 'שווי פגומים (פירוט)', value: nisCompact(d.detail.val), note: fmtInt.format(d.detail.rows) + ' שורות פריט' },
+        { label: 'כמות יחידות פגומות', value: fmtCompact.format(d.detail.qty) },
+      ];
+      if (d.dest) kpis.push({ label: 'שווי השמדות', value: nisCompact(d.dest.total), note: fmtInt.format(d.dest.rows) + ' שורות' });
+      sectionCover(sec, period, kpis);
+
+      col(chartSlide(sec, 'שווי העברות לפי חודש (₪)'),
+        d.sumByMonth.map(r => monthLabel(r.m)), d.sumByMonth.map(r => Math.round(r.nis)),
+        { dataLabelFormatCode: M_FMT, valAxisLabelFormatCode: M_AXIS });
+
+      const reasons = d.reasons.slice(0, 10).map(r => ({ name: r.name, val: Math.round(r.nis) }));
+      const restR = d.reasons.slice(10);
+      if (restR.length) reasons.push({ name: 'אחר (' + restR.length + ' סיבות)', val: Math.round(restR.reduce((t, r) => t + r.nis, 0)) });
+      hbar(chartSlide(sec, 'עשר הסיבות המובילות להעברה (₪)'), reasons,
+        { dataLabelFormatCode: M_FMT, valAxisLabelFormatCode: M_AXIS });
+
+      hbar(chartSlide(sec, 'עשרת הפריטים הפגומים המובילים (₪)'),
+        d.detail.topItems.slice(0, 10).map(r => ({ name: r.name, val: Math.round(r.val) })),
+        { dataLabelFormatCode: '#,##0,"K"', valAxisLabelFormatCode: '#,##0,"K"' });
+
+      const dReasons = d.detail.byReason.slice(0, 10).map(r => ({ name: r.name, val: Math.round(r.val) }));
+      const restD = d.detail.byReason.slice(10);
+      if (restD.length) dReasons.push({ name: 'אחר (' + restD.length + ' סיבות)', val: Math.round(restD.reduce((t, r) => t + r.val, 0)) });
+      hbar(chartSlide(sec, 'פגומים לפי סיבה (₪)'), dReasons,
+        { dataLabelFormatCode: '#,##0,"K"', valAxisLabelFormatCode: '#,##0,"K"' });
+
+      if (d.dest) col(chartSlide(sec, 'השמדות לפי חודש (₪)'),
+        d.dest.byMonth.map(r => monthLabel(r.m)), d.dest.byMonth.map(r => Math.round(r.nis)),
+        { chartColors: [C.s3], dataLabelFormatCode: M_FMT, valAxisLabelFormatCode: M_AXIS });
+
+    } else if (d.kind === 'inventory') {
+      const period = periodLabel(d.months);
+      const accuracy = 100 * (1 - d.diffRows / d.total);
+      sectionCover(sec, period, [
+        { label: 'סה"כ ספירות', value: fmtInt.format(d.total), note: period },
+        { label: 'ספירות עם הפרש', value: fmtInt.format(d.diffRows), note: fmtPct(100 * d.diffRows / d.total) + ' מהספירות' },
+        { label: 'דיוק ספירה', value: fmtPct(accuracy), note: 'ספירות ללא הפרש' },
+        { label: 'כמות הפרש מוחלטת', value: fmtCompact.format(d.absQty), note: 'יחידות' },
+      ]);
+
+      col(chartSlide(sec, 'מספר ספירות לפי חודש'),
+        d.byMonth.map(r => monthLabel(r.m)), d.byMonth.map(r => r.counts),
+        { dataLabelFormatCode: INT_FMT });
+
+      col(chartSlide(sec, 'ספירות עם הפרש לפי חודש'),
+        d.byMonth.map(r => monthLabel(r.m)), d.byMonth.map(r => r.diffRows),
+        { chartColors: [C.s2], dataLabelFormatCode: INT_FMT });
+
+      const accVals = d.byMonth.map(r => Math.round(1000 * (1 - r.diffRows / r.counts)) / 10);
+      lineP(chartSlide(sec, 'דיוק ספירה לפי חודש (%)'),
+        d.byMonth.map(r => monthLabel(r.m)), accVals,
+        { dataLabelFormatCode: PCT_FMT, valAxisMinVal: Math.min(90, Math.floor(Math.min(...accVals))), valAxisMaxVal: 100 });
+
+      hbar(chartSlide(sec, 'ספירות לפי סיבה'),
+        d.byReason.map(r => ({ name: r.name, val: r.counts })), { dataLabelFormatCode: INT_FMT });
+
+      hbar(chartSlide(sec, 'הפרשים לפי אזור פעילות (% מהספירות)'),
+        d.byArea.filter(a => a.counts >= 10)
+          .map(a => ({ name: a.name, val: Math.round(1000 * a.diffRows / a.counts) / 10 }))
+          .sort((a, b) => b.val - a.val),
+        { chartColors: [C.s2], dataLabelFormatCode: PCT_FMT, valAxisLabelFormatCode: '0"%"' });
+
+    } else if (d.kind === 'calls') {
+      const period = periodLabel(d.months);
+      const just = d.justTotals['מוצדק'] || 0, unjust = d.justTotals['לא מוצדק'] || 0;
+      sectionCover(sec, period, [
+        { label: 'סה"כ קריאות', value: fmtInt.format(d.totalCalls), note: fmtInt.format(d.totalLines) + ' שורות פריט' },
+        { label: 'קריאות מוצדקות', value: fmtInt.format(just), note: just + unjust ? fmtPct(100 * just / (just + unjust)) + ' מהמסווגות' : '' },
+        { label: 'קריאות לא מוצדקות', value: fmtInt.format(unjust) },
+        { label: 'קריאות שירות', value: fmtInt.format(d.justTotals['שירות'] || 0), note: 'ללא סיווג הצדקה' },
+      ]);
+
+      const groupColors = [C.s1, C.s2, C.s3];
+      chartSlide(sec, 'קריאות לפי חודש — מוצדק מול לא מוצדק')
+        .addChart(pptx.ChartType.bar,
+          d.justKinds.map(k => ({ name: k, labels: d.byMonth.map(r => monthLabel(r.m)), values: d.byMonth.map(r => r[k] || 0) })),
+          { ...baseOpts, barDir: 'col', showValue: true, dataLabelFormatCode: INT_FMT,
+            chartColors: d.justKinds.map((k, i) => groupColors[i % groupColors.length]),
+            showLegend: true, legendPos: 'b', legendFontSize: 12, legendColor: C.ink2, legendFontFace: FONT });
+
+      const pctVals = d.byMonth.map(r => {
+        const j = r['מוצדק'] || 0, u = r['לא מוצדק'] || 0;
+        return j + u ? Math.round(1000 * j / (j + u)) / 10 : 0;
+      });
+      lineP(chartSlide(sec, 'אחוז הקריאות המוצדקות לפי חודש'),
+        d.byMonth.map(r => monthLabel(r.m)), pctVals,
+        { dataLabelFormatCode: PCT_FMT, valAxisMinVal: Math.max(0, Math.floor(Math.min(...pctVals) / 10) * 10 - 10), valAxisMaxVal: Math.min(100, Math.ceil(Math.max(...pctVals) / 10) * 10 + 10) });
+
+      const cReasons = d.byReason.slice(0, 10).map(r => ({ name: r.name, val: r.total }));
+      const restC = d.byReason.slice(10);
+      if (restC.length) cReasons.push({ name: 'אחר (' + restC.length + ' סיבות)', val: restC.reduce((t, r) => t + r.total, 0) });
+      hbar(chartSlide(sec, 'הסיבות המובילות לקריאות שירות'), cReasons, { dataLabelFormatCode: INT_FMT });
+
+      hbar(chartSlide(sec, 'עשרת הלקוחות המובילים בקריאות'),
+        d.byCustomer.slice(0, 10).map(r => ({ name: r.name, val: r.total })), { dataLabelFormatCode: INT_FMT });
+
+      hbar(chartSlide(sec, 'קריאות לפי סוג'),
+        d.byType.slice(0, 10).map(r => ({ name: r.name, val: r.total })),
+        { chartColors: [C.s3], dataLabelFormatCode: INT_FMT });
+
+    } else if (d.agg && d.agg.items.length > 1) {
+      hbar(chartSlide(sec, d.agg.value + ' לפי ' + d.agg.label),
+        d.agg.items.slice(0, 12).map(r => ({ name: r.name, val: Math.round(r.val) })),
+        { dataLabelFormatCode: INT_FMT });
+    }
+  }
+
+  const today = new Date();
+  const fileDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  await pptx.writeFile({ fileName: 'Novolog-Data-' + fileDate + '.pptx' });
+}
+
+/* ============================================================
    מנהל המצגת
    ============================================================ */
 const stage = document.getElementById('stage');
@@ -1693,6 +1955,22 @@ const counter = document.getElementById('slideCounter');
 const topicMenu = document.getElementById('topicMenu');
 const menuBtn = document.getElementById('menuBtn');
 const newFilesBtn = document.getElementById('newFilesBtn');
+const pptBtn = document.getElementById('pptBtn');
+
+pptBtn.addEventListener('click', async () => {
+  pptBtn.disabled = true;
+  const label = pptBtn.querySelector('span');
+  const orig = label.textContent;
+  label.textContent = 'מייצר קובץ...';
+  try {
+    await exportToPptx();
+  } catch (err) {
+    console.error(err);
+    alert('שגיאה ביצירת קובץ ה-PowerPoint');
+  }
+  label.textContent = orig;
+  pptBtn.disabled = false;
+});
 
 let slides = [];
 let current = 0;
@@ -1735,6 +2013,7 @@ function goTo(i) {
 }
 
 function buildDeck(datasets) {
+  currentDatasets = datasets;
   stage.textContent = '';
   slides = [];
   slides.push(buildBrandCoverSlide(datasets));
@@ -1783,6 +2062,7 @@ function buildDeck(datasets) {
   counter.classList.add('show');
   menuBtn.style.display = '';
   newFilesBtn.style.display = '';
+  pptBtn.style.display = '';
   fitSlides();
   goTo(0);
 }
@@ -1907,6 +2187,7 @@ newFilesBtn.addEventListener('click', () => {
   counter.classList.remove('show');
   menuBtn.style.display = 'none';
   newFilesBtn.style.display = 'none';
+  pptBtn.style.display = 'none';
   topicMenu.classList.remove('open');
   uploadScreen.style.display = '';
 });
