@@ -2029,9 +2029,7 @@ async function exportToPptx() {
     }
   }
 
-  const today = new Date();
-  const fileDate = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
-  await pptx.writeFile({ fileName: 'Novolog-Data-' + fileDate + '.pptx' });
+  await pptx.writeFile({ fileName: 'מצגת נתונים.pptx' });
 }
 
 /* ============================================================
