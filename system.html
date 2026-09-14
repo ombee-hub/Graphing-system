@@ -631,7 +631,7 @@
 <nav id="topicMenu"></nav>
 <div id="loadingMsg">
   <img src="icon-novolog-logo.png" alt="">
-  <span>מעבד קבצים...</span>
+  <span>מעלה קבצים...</span>
 </div>
 
 <script>
@@ -1131,8 +1131,14 @@ function barChartH(body, opts) {
     const bar = svgEl('path', { d: path, fill: color });
     svg.appendChild(bar);
 
-    // שם קטגוריה בימין
-    const name = d.name.length > 34 ? d.name.slice(0, 33) + '…' : d.name;
+    // שם קטגוריה בימין — חיתוך בגבול מילה שלמה
+    let name = d.name;
+    if (name.length > 34) {
+      name = name.slice(0, 34);
+      const sp = name.lastIndexOf(' ');
+      if (sp > 14) name = name.slice(0, sp);
+      name = name.trim() + '…';
+    }
     const cat = svgEl('text', { x: x0 + 12, y: cy + 4.5, 'font-size': 14, 'font-weight': 600,
       fill: css('--ink'), 'text-anchor': 'start' });
     cat.textContent = name;
@@ -1836,7 +1842,13 @@ async function exportToPptx() {
   const short = (fn, base) => {
     let t = fn.replace(/\.(xlsx|xls|xlsm|csv)$/i, '').trim();
     if (base && t.startsWith(base)) t = t.slice(base.length).trim();
-    return (t.length > 32 ? t.slice(0, 31).trim() + '…' : t) || fn;
+    if (t.length > 32) {
+      t = t.slice(0, 32);
+      const sp = t.lastIndexOf(' '); // חיתוך בגבול מילה שלמה
+      if (sp > 12) t = t.slice(0, sp);
+      t = t.trim() + '…';
+    }
+    return t || fn;
   };
   const M_FMT = '#,##0.0,,"M"', M_AXIS = '#,##0,,"M"', PCT_FMT = '0.0"%"', INT_FMT = '#,##0';
 
@@ -2040,7 +2052,12 @@ function buildDeck(datasets) {
   const shortName = (fn, base) => {
     let s = fn.replace(/\.(xlsx|xls|xlsm|csv)$/i, '').trim();
     if (base && s.startsWith(base)) s = s.slice(base.length).trim(); // בלי לחזור על שם הדוח
-    if (s.length > 32) s = s.slice(0, 31).trim() + '…';
+    if (s.length > 32) {
+      s = s.slice(0, 32);
+      const sp = s.lastIndexOf(' '); // חיתוך בגבול מילה שלמה
+      if (sp > 12) s = s.slice(0, sp);
+      s = s.trim() + '…';
+    }
     return s || fn;
   };
   for (const d of datasets) {
