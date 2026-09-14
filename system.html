@@ -537,6 +537,54 @@
     .nav-btn svg { width: 18px; height: 18px; }
     #slideCounter { bottom: 22px; font-size: 12px; padding: 4px 12px; }
   }
+
+  /* טלפון לרוחב — מסך נמוך: מכווצים את הכרום כדי לפנות גובה לשקף */
+  @media (max-height: 520px) {
+    header.topbar { height: 40px; gap: 7px; padding: 0 10px; }
+    .topbar h1 { font-size: 13px; }
+    .topbar .mark { width: 26px; height: 26px; border-radius: 6px; }
+    .topbar .mark svg { width: 14px; height: 14px; }
+    .topbar button { font-size: 11.5px; padding: 4px 9px; border-radius: 7px; }
+    #stage { inset: 40px 0 0 0; }
+    /* מסך ההעלאה גולש במסך נמוך — מאפשרים גלילה */
+    #uploadScreen {
+      inset: 40px 0 0 0;
+      justify-content: flex-start;
+      overflow-y: auto;
+      padding: 16px;
+      gap: 12px;
+    }
+    #uploadScreen .upload-logo { height: 48px; flex: none; }
+    #uploadScreen .dropzone { padding: 20px 16px; flex: none; }
+    #uploadScreen .upload-copyright { position: static; margin-top: 6px; flex: none; }
+    .nav-btn { width: 38px; height: 38px; top: 50%; bottom: auto; }
+    #prevBtn { right: 8px; }
+    #nextBtn { left: 8px; }
+    .nav-btn svg { width: 17px; height: 17px; }
+    #slideCounter { bottom: 6px; font-size: 11px; padding: 3px 10px; }
+  }
+
+  /* כפתור מסך מלא — מוצג בטלפונים לצד מונה השקפים */
+  #fsBtn {
+    position: fixed;
+    bottom: 10px;
+    left: calc(50% + 62px);
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 60;
+  }
+  #fsBtn:hover { background: rgba(255,202,15,.85); color: var(--brand-dark); }
+  #fsBtn svg { width: 17px; height: 17px; }
+  @media (max-width: 700px), (max-height: 520px) {
+    #fsBtn.show { display: flex; }
+  }
 </style>
 </head>
 <body>
@@ -594,6 +642,9 @@
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
 </button>
 <div id="slideCounter"></div>
+<button id="fsBtn" aria-label="מסך מלא" title="מסך מלא">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+</button>
 <div id="loadingMsg">
   <img src="icon-novolog-logo.png" alt="">
   <span>מעלה קבצים...</span>
@@ -1997,13 +2048,25 @@ function fitSlides() {
     return;
   }
   // בטלפון כפתורי הניווט יושבים למטה, אז השקף מקבל כמעט את כל הרוחב
-  const availW = stage.clientWidth - (narrow ? 12 : 140);
-  const availH = stage.clientHeight - (narrow ? 64 : 50);
+  const shortScreen = window.innerHeight <= 520; // טלפון לרוחב — הגובה הוא המשאב היקר
+  const availW = stage.clientWidth - (narrow ? 12 : (shortScreen ? 96 : 140));
+  const availH = stage.clientHeight - (narrow ? 64 : (shortScreen ? 14 : 50));
   const scale = Math.min(availW / 1280, availH / 720, 1.15);
   slides.forEach(sh => { sh.s.style.transform = `scale(${scale})`; });
 }
 window.addEventListener('resize', fitSlides);
 window.addEventListener('orientationchange', () => setTimeout(fitSlides, 250));
+
+/* מסך מלא — מפנה גם את שורת הכתובת של הדפדפן בטלפון */
+const fsBtn = document.getElementById('fsBtn');
+fsBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    (document.documentElement.requestFullscreen ? document.documentElement.requestFullscreen() : Promise.reject()).catch(() => {});
+  } else {
+    document.exitFullscreen();
+  }
+});
+document.addEventListener('fullscreenchange', () => setTimeout(fitSlides, 150));
 
 /* החלקת אצבע בין שקפים — כיוון RTL: החלקה ימינה = השקף הבא */
 let touchX = null, touchY = null;
@@ -2076,6 +2139,7 @@ function buildDeck(datasets) {
   prevBtn.classList.add('show');
   nextBtn.classList.add('show');
   counter.classList.add('show');
+  fsBtn.classList.add('show');
   newFilesBtn.style.display = '';
   pptBtn.style.display = '';
   fitSlides();
@@ -2198,6 +2262,7 @@ newFilesBtn.addEventListener('click', () => {
   prevBtn.classList.remove('show');
   nextBtn.classList.remove('show');
   counter.classList.remove('show');
+  fsBtn.classList.remove('show');
   newFilesBtn.style.display = 'none';
   pptBtn.style.display = 'none';
   uploadScreen.style.display = '';
