@@ -1306,7 +1306,7 @@ function buildDamagedSlides(d, sectionTitle) {
     const kick = el('div', 'cover-kicker', 'Novolog Ltd');
     wrap.appendChild(kick);
     wrap.appendChild(el('h2', null, section));
-    const sub = el('div', 's-sub', period + ' · ' + d.fileName);
+    const sub = el('div', 's-sub', period);
     wrap.appendChild(sub);
     const kpis = el('div', 'kpi-row');
     wrap.appendChild(kpis);
@@ -1418,7 +1418,7 @@ function buildInventorySlides(d, sectionTitle) {
     const wrap = el('div');
     wrap.appendChild(el('div', 'cover-kicker', 'Novolog Ltd'));
     wrap.appendChild(el('h2', null, section));
-    wrap.appendChild(el('div', 's-sub', period + ' · ' + d.fileName));
+    wrap.appendChild(el('div', 's-sub', period));
     const kpis = el('div', 'kpi-row');
     [
       { label: 'סה"כ ספירות', value: fmtInt.format(d.total), note: period },
@@ -1540,7 +1540,7 @@ function buildServiceCallsSlides(d, sectionTitle) {
     const wrap = el('div');
     wrap.appendChild(el('div', 'cover-kicker', 'Novolog Ltd'));
     wrap.appendChild(el('h2', null, section));
-    wrap.appendChild(el('div', 's-sub', period + ' · ' + d.fileName));
+    wrap.appendChild(el('div', 's-sub', period));
     const kpis = el('div', 'kpi-row');
     [
       { label: 'סה"כ קריאות', value: fmtInt.format(d.totalCalls), note: fmtInt.format(d.totalLines) + ' שורות פריט' },
