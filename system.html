@@ -1,0 +1,1920 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מערכת גרפים</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffca0f'/%3E%3Cg stroke='%233c4d5c' stroke-width='6' stroke-linecap='round'%3E%3Cline x1='16' y1='48' x2='16' y2='32'/%3E%3Cline x1='28' y1='48' x2='28' y2='18'/%3E%3Cline x1='40' y1='48' x2='40' y2='28'/%3E%3Cline x1='52' y1='48' x2='52' y2='14'/%3E%3C/g%3E%3C/svg%3E">
+<script>
+  // שומר כניסה: מי שלא התחבר — חוזר למסך ההתחברות.
+  (function () {
+    try {
+      if (!sessionStorage.getItem('gs_auth')) location.replace('login.html');
+    } catch (e) {
+      location.replace('login.html');
+    }
+  })();
+</script>
+<script src="lib/xlsx.full.min.js"></script>
+<style>
+  /* פונט Assistant — מקומי, עובד גם בלי אינטרנט (פונט משתנה, כל המשקלים) */
+  @font-face {
+    font-family: 'Assistant';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('lib/fonts/assistant-hebrew.woff2') format('woff2');
+    unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F;
+  }
+  @font-face {
+    font-family: 'Assistant';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('lib/fonts/assistant-latin-ext.woff2') format('woff2');
+    unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+  }
+  @font-face {
+    font-family: 'Assistant';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('lib/fonts/assistant-latin.woff2') format('woff2');
+    unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+  }
+
+  :root {
+    /* מותג Novolog */
+    --brand: #3c4d5c;
+    --brand-dark: #2b3844;
+    --bg-deep: #232e38;
+    --accent: #ffca0f;
+    --accent-dark: #e6b400;
+
+    /* פלטת גרפים — אומתה לבטיחות עיוורון צבעים וניגודיות על שקף לבן */
+    --series-1: #2f66a5;   /* כחול פלדה — סדרה ראשית */
+    --series-2: #b8860b;   /* ענבר — סדרה שנייה */
+    --series-3: #159d7f;   /* טורקיז — סדרה שלישית */
+    --critical: #d03b3b;   /* סטטוס שלילי */
+
+    /* דיו וכרום על שקף לבן */
+    --slide-surface: #ffffff;
+    --ink: #24303a;
+    --ink-2: #52616e;
+    --muted: #8794a0;
+    --grid: #e7eaee;
+    --baseline: #c5ccd3;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+
+  body {
+    font-family: 'Assistant', 'Segoe UI', Arial, sans-serif;
+    background: var(--bg-deep);
+    color: #fff;
+    overflow: hidden;
+  }
+
+  /* ===================== סרגל עליון ===================== */
+  header.topbar {
+    position: fixed;
+    top: 0; right: 0; left: 0;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 18px;
+    background: rgba(35,46,56,.92);
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    z-index: 50;
+  }
+  .topbar .mark {
+    width: 34px; height: 34px; border-radius: 9px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    display: flex; align-items: center; justify-content: center;
+    flex: none;
+  }
+  .topbar .mark svg { width: 19px; height: 19px; }
+  .topbar h1 { font-size: 17px; font-weight: 800; }
+  .topbar .spacer { flex: 1; }
+  .topbar button {
+    font: inherit; font-size: 14px; font-weight: 700;
+    color: #fff;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.18);
+    border-radius: 8px;
+    padding: 7px 14px;
+    cursor: pointer;
+    transition: background .12s;
+  }
+  .topbar button:hover { background: rgba(255,255,255,.16); }
+  .topbar button.primary {
+    color: var(--brand-dark);
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    border: none;
+    font-weight: 800;
+  }
+
+  /* ===================== מסך העלאת קבצים ===================== */
+  #uploadScreen {
+    position: fixed; inset: 56px 0 0 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 22px;
+    padding: 30px;
+  }
+
+  /* ===================== שקף פתיחה ממותג ===================== */
+  .slide.brand-cover {
+    background: #37485a;
+    color: #fff;
+    padding: 0;
+  }
+  .slide.brand-cover::before { display: none; } /* בלי פס המותג הרגיל — יש עיצוב מלא */
+
+  .brand-cover .bc-hero {
+    position: absolute;
+    top: 52px; left: 60px;
+  }
+  .brand-cover .bc-hero img { display: block; height: 100px; }
+
+  .brand-cover .bc-title {
+    position: absolute;
+    top: 50%; right: 90px;
+    transform: translateY(-72%);
+    text-align: right;
+  }
+  .brand-cover .bc-title h2 {
+    font-size: 58px;
+    font-weight: 800;
+    color: #fff;
+    line-height: 1.15;
+  }
+  .brand-cover .bc-title .bc-sub {
+    font-size: 22px;
+    color: rgba(255,255,255,.75);
+    margin-top: 14px;
+  }
+
+  /* פס הבלוקים הצבעוניים בתחתית השקף — צהוב · ירוק · תכלת */
+  .brand-cover .bc-band {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 150px;
+    background: #fff;
+    display: flex;
+    align-items: flex-end;
+    gap: 20px;
+    padding-top: 22px;
+    overflow: hidden;
+  }
+  .brand-cover .bc-band > div { height: calc(100% - 22px); }
+  .brand-cover .bc-band .bb-yellow { width: 76px; margin-left: -20px; background: var(--accent); }
+  .brand-cover .bc-band .bb-green  { width: 200px; background: #3aab4f; }
+  .brand-cover .bc-band .bb-blue   { flex: 1; margin-right: 14px; background: #4bb8e8; }
+  .dropzone {
+    width: min(680px, 92vw);
+    border: 2px dashed rgba(255,255,255,.3);
+    border-radius: 18px;
+    background: rgba(255,255,255,.04);
+    padding: 54px 30px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .dropzone.dragover { border-color: var(--accent); background: rgba(255,202,15,.08); }
+  .dropzone .dz-icon {
+    width: 64px; height: 64px; margin: 0 auto 16px;
+    border-radius: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dropzone .dz-icon svg { width: 32px; height: 32px; }
+  .dropzone h2 { font-size: 22px; font-weight: 800; margin-bottom: 6px; }
+  .dropzone p { font-size: 15px; color: rgba(255,255,255,.65); }
+  .dropzone p b { color: var(--accent); }
+
+  #fileList {
+    width: min(680px, 92vw);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .file-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 14.5px;
+  }
+  .file-row .fname { flex: 1; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-row .ftype {
+    font-size: 12.5px; font-weight: 700;
+    padding: 3px 10px; border-radius: 999px;
+    background: rgba(255,202,15,.16);
+    border: 1px solid rgba(255,202,15,.4);
+    color: var(--accent);
+    flex: none;
+  }
+  .file-row .ftype.err { background: rgba(208,59,59,.15); border-color: rgba(208,59,59,.5); color: #ff9a9a; }
+  .file-row .del-btn {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; height: 32px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: rgba(255,255,255,.45);
+    cursor: pointer;
+    transition: background .12s, color .12s;
+  }
+  .file-row .del-btn:hover { background: rgba(208,59,59,.18); color: #ff8383; }
+  .file-row .del-btn svg { width: 17px; height: 17px; }
+
+  #buildBtn {
+    font: inherit; font-size: 17px; font-weight: 800;
+    color: var(--brand-dark);
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    border: none; border-radius: 12px;
+    padding: 14px 44px;
+    cursor: pointer;
+    box-shadow: 0 8px 22px rgba(255,202,15,.3);
+    transition: transform .12s, box-shadow .12s;
+  }
+  #buildBtn:hover { transform: translateY(-1px); box-shadow: 0 11px 26px rgba(255,202,15,.4); }
+  #buildBtn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* ===================== במת המצגת ===================== */
+  #stage {
+    position: fixed; inset: 56px 0 0 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+  #stage.active { display: flex; }
+
+  .slide {
+    width: 1280px;
+    height: 720px;
+    background: var(--slide-surface);
+    color: var(--ink);
+    border-radius: 6px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    position: absolute;
+    transform-origin: center center;
+    display: flex;
+    flex-direction: column;
+    padding: 54px 70px 40px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .35s ease;
+    overflow: hidden;
+  }
+  .slide.current { opacity: 1; pointer-events: auto; }
+
+  /* פס מותג בראש כל שקף */
+  .slide::before {
+    content: '';
+    position: absolute;
+    top: 0; right: 0; left: 0;
+    height: 8px;
+    background: linear-gradient(-90deg, var(--brand) 0 72%, var(--accent) 72% 100%);
+  }
+
+  .slide .s-head { margin-bottom: 18px; flex: none; }
+  .slide .s-kicker {
+    font-size: 15px; font-weight: 700;
+    color: var(--ink-2);
+    letter-spacing: .02em;
+    margin-bottom: 2px;
+  }
+  .slide h2 {
+    font-size: 34px;
+    font-weight: 800;
+    color: var(--brand-dark);
+    line-height: 1.15;
+  }
+  .slide .s-sub { font-size: 16.5px; color: var(--ink-2); margin-top: 4px; }
+  .slide .s-body { flex: 1; min-height: 0; position: relative; }
+
+  .slide .s-foot {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--muted);
+    padding-top: 12px;
+  }
+
+  /* שקף שער */
+  .slide.cover { justify-content: center; padding: 70px 90px; }
+  .slide.cover .cover-kicker {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 17px; font-weight: 700; color: var(--ink-2);
+    margin-bottom: 14px;
+  }
+  .slide.cover .cover-kicker::before {
+    content: ''; width: 34px; height: 6px; border-radius: 3px;
+    background: var(--accent);
+  }
+  .slide.cover h2 { font-size: 54px; margin-bottom: 8px; }
+  .slide.cover .s-sub { font-size: 21px; margin-bottom: 44px; }
+
+  /* אריחי נתונים */
+  .kpi-row { display: flex; gap: 20px; }
+  .kpi {
+    flex: 1;
+    background: #f6f8fa;
+    border: 1px solid var(--grid);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .kpi .k-label { font-size: 14.5px; font-weight: 600; color: var(--ink-2); margin-bottom: 6px; }
+  .kpi .k-value { font-size: 36px; font-weight: 800; color: var(--brand-dark); line-height: 1.1; }
+  .kpi .k-note { font-size: 13px; color: var(--muted); margin-top: 5px; }
+
+  /* גרפים */
+  .chart-wrap { position: absolute; inset: 0; }
+  .chart-wrap svg { display: block; width: 100%; height: 100%; }
+  svg text { font-family: 'Assistant', 'Segoe UI', Arial, sans-serif; }
+
+  .viz-tooltip {
+    position: absolute;
+    pointer-events: none;
+    background: var(--brand-dark);
+    color: #fff;
+    border-radius: 9px;
+    padding: 9px 13px;
+    font-size: 13.5px;
+    box-shadow: 0 8px 20px rgba(0,0,0,.3);
+    opacity: 0;
+    transition: opacity .1s;
+    z-index: 10;
+    max-width: 300px;
+  }
+  .viz-tooltip .tt-title { font-weight: 700; margin-bottom: 3px; }
+  .viz-tooltip .tt-row { display: flex; align-items: baseline; gap: 8px; }
+  .viz-tooltip .tt-row .tt-key {
+    display: inline-block; width: 14px; height: 3px; border-radius: 2px;
+    flex: none; align-self: center;
+  }
+  .viz-tooltip .tt-row b { font-size: 15px; }
+  .viz-tooltip .tt-row span { color: rgba(255,255,255,.75); }
+
+  /* מקרא */
+  .legend {
+    position: absolute;
+    top: -4px; left: 0;
+    display: flex; gap: 18px;
+    font-size: 13.5px; font-weight: 600; color: var(--ink-2);
+    z-index: 5;
+  }
+  .legend .lg-item { display: flex; align-items: center; gap: 7px; }
+  .legend .lg-swatch { width: 13px; height: 13px; border-radius: 4px; }
+
+  /* תצוגת טבלה */
+  .table-overlay {
+    position: absolute; inset: 0;
+    background: var(--slide-surface);
+    display: none;
+    overflow: auto;
+    z-index: 8;
+  }
+  .table-overlay.show { display: block; }
+  .table-overlay table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+  .table-overlay th {
+    text-align: right; font-weight: 700; color: var(--brand-dark);
+    border-bottom: 2px solid var(--brand);
+    padding: 8px 12px;
+    position: sticky; top: 0; background: var(--slide-surface);
+  }
+  .table-overlay td {
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--grid);
+    color: var(--ink);
+  }
+  .table-overlay td.num { font-variant-numeric: tabular-nums; }
+
+  .tbl-btn {
+    position: absolute;
+    top: -38px; left: 0;
+    font: inherit; font-size: 13px; font-weight: 700;
+    color: var(--ink-2);
+    background: #f1f4f7;
+    border: 1px solid var(--grid);
+    border-radius: 8px;
+    padding: 5px 13px;
+    cursor: pointer;
+    z-index: 9;
+  }
+  .tbl-btn:hover { background: #e8edf2; }
+
+  /* ===================== ניווט ===================== */
+  .nav-btn {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,.2);
+    background: rgba(255,255,255,.08);
+    color: #fff;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 60;
+    transition: background .12s;
+  }
+  .nav-btn:hover { background: rgba(255,202,15,.85); color: var(--brand-dark); }
+  .nav-btn svg { width: 22px; height: 22px; }
+  .nav-btn.show { display: flex; }
+  #prevBtn { right: 18px; }
+  #nextBtn { left: 18px; }
+  .nav-btn:disabled { opacity: .25; cursor: default; }
+  .nav-btn:disabled:hover { background: rgba(255,255,255,.08); color: #fff; }
+
+  #slideCounter {
+    position: fixed;
+    bottom: 16px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 13.5px; font-weight: 600;
+    color: rgba(255,255,255,.75);
+    background: rgba(0,0,0,.3);
+    border-radius: 999px;
+    padding: 5px 16px;
+    z-index: 60;
+    display: none;
+  }
+  #slideCounter.show { display: block; }
+
+  /* תפריט נושאים */
+  #topicMenu {
+    position: fixed;
+    top: 56px; right: 0; bottom: 0;
+    width: 300px;
+    background: var(--brand-dark);
+    border-left: 1px solid rgba(255,255,255,.1);
+    transform: translateX(100%);
+    transition: transform .25s ease;
+    z-index: 70;
+    overflow-y: auto;
+    padding: 16px 0;
+  }
+  #topicMenu.open { transform: translateX(0); }
+  #topicMenu .tm-section {
+    font-size: 12.5px; font-weight: 800;
+    color: var(--accent);
+    letter-spacing: .06em;
+    padding: 14px 20px 6px;
+  }
+  #topicMenu a {
+    display: block;
+    padding: 9px 20px;
+    font-size: 14.5px;
+    color: rgba(255,255,255,.85);
+    text-decoration: none;
+    border-right: 3px solid transparent;
+  }
+  #topicMenu a:hover { background: rgba(255,255,255,.06); }
+  #topicMenu a.active { border-right-color: var(--accent); background: rgba(255,202,15,.1); color: #fff; font-weight: 700; }
+
+  #loadingMsg {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 22px;
+    background: rgba(35,46,56,.85);
+    z-index: 100;
+    font-size: 19px; font-weight: 700;
+  }
+  #loadingMsg.show { display: flex; }
+  #loadingMsg img {
+    width: 72px;
+    animation: nv-spin 1.4s linear infinite;
+  }
+  @keyframes nv-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  /* רמז לסיבוב הטלפון — מוצג רק במסך צר במצב אנכי כשמצגת פעילה */
+  #rotateHint {
+    display: none;
+    position: fixed;
+    top: 64px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,202,15,.95);
+    color: var(--brand-dark);
+    font-size: 13.5px;
+    font-weight: 700;
+    border-radius: 999px;
+    padding: 8px 18px;
+    z-index: 80;
+    box-shadow: 0 6px 16px rgba(0,0,0,.3);
+    white-space: nowrap;
+  }
+
+  /* ===================== התאמה לטלפון ===================== */
+  @media (max-width: 700px) {
+    header.topbar { height: 48px; gap: 7px; padding: 0 10px; }
+    .topbar h1 { font-size: 14px; }
+    .topbar .mark { width: 28px; height: 28px; border-radius: 7px; }
+    .topbar .mark svg { width: 15px; height: 15px; }
+    .topbar button { font-size: 12px; padding: 6px 9px; border-radius: 7px; }
+
+    #uploadScreen { inset: 48px 0 0 0; padding: 14px; gap: 14px; }
+    .dropzone { padding: 30px 16px; }
+    .dropzone h2 { font-size: 18px; }
+    .dropzone p { font-size: 13.5px; }
+    .file-row { font-size: 13px; padding: 8px 10px; gap: 8px; }
+    .file-row .ftype { font-size: 11px; padding: 2px 8px; }
+    #buildBtn { font-size: 15px; padding: 12px 34px; }
+
+    #stage { inset: 48px 0 0 0; }
+    .nav-btn { width: 40px; height: 40px; top: auto; bottom: 12px; }
+    #prevBtn { right: 12px; }
+    #nextBtn { left: 12px; }
+    .nav-btn svg { width: 18px; height: 18px; }
+    #slideCounter { bottom: 22px; font-size: 12px; padding: 4px 12px; }
+    #topicMenu { top: 48px; width: min(300px, 84vw); }
+  }
+  @media (max-width: 700px) and (orientation: portrait) {
+    #stage.active ~ #rotateHint { display: block; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="mark" aria-hidden="true">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#3c4d5c" stroke-width="2.4" stroke-linecap="round">
+      <line x1="5"  y1="20" x2="5"  y2="12"/><line x1="10" y1="20" x2="10" y2="6"/>
+      <line x1="15" y1="20" x2="15" y2="10"/><line x1="20" y1="20" x2="20" y2="4"/>
+    </svg>
+  </div>
+  <h1>מערכת הגרפים</h1>
+  <div class="spacer"></div>
+  <button id="menuBtn" style="display:none">☰ נושאים</button>
+  <button id="newFilesBtn" style="display:none">קבצים חדשים</button>
+  <button id="logoutBtn">התנתקות</button>
+</header>
+
+<!-- מסך העלאה -->
+<section id="uploadScreen">
+  <div class="dropzone" id="dropzone">
+    <div class="dz-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#3c4d5c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+    </div>
+    <h2>גררו לכאן קבצי אקסל</h2>
+    <p>או <b>לחצו לבחירת קבצים</b> · המערכת מזהה את סוג הדוח אוטומטית ובונה מצגת גרפים לפי נושאים</p>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.xlsm,.csv" multiple hidden>
+  </div>
+  <div id="fileList"></div>
+  <button id="buildBtn" disabled>צור מצגת</button>
+</section>
+
+<!-- במת מצגת -->
+<section id="stage"></section>
+<div id="rotateHint">💡 סובבו את הטלפון לרוחב לתצוגה מיטבית</div>
+<button class="nav-btn" id="prevBtn" aria-label="שקף קודם">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+</button>
+<button class="nav-btn" id="nextBtn" aria-label="שקף הבא">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+</button>
+<div id="slideCounter"></div>
+<nav id="topicMenu"></nav>
+<div id="loadingMsg">
+  <img src="icon-novolog-logo.png" alt="">
+  <span>מעבד קבצים...</span>
+</div>
+
+<script>
+'use strict';
+
+/* ============================================================
+   כלי עזר
+   ============================================================ */
+const fmtInt = new Intl.NumberFormat('he-IL', { maximumFractionDigits: 0 });
+const fmtCompact = new Intl.NumberFormat('he-IL', { notation: 'compact', maximumFractionDigits: 1 });
+const fmtPct = v => v.toLocaleString('he-IL', { maximumFractionDigits: 1 }) + '%';
+const nis = v => '₪' + fmtInt.format(v);
+const nisCompact = v => '₪' + fmtCompact.format(v);
+const num = v => parseFloat(String(v ?? '').replace(/,/g, '')) || 0;
+
+const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+function monthLabel(ym) { // "2026/06" -> "יוני 26"
+  const [y, m] = ym.split('/');
+  return MONTH_NAMES[parseInt(m, 10) - 1] + ' ' + y.slice(2);
+}
+function periodLabel(months) {
+  if (!months.length) return '';
+  const a = months[0], b = months[months.length - 1];
+  const [ya, ma] = a.split('/'), [yb, mb] = b.split('/');
+  if (a === b) return MONTH_NAMES[+ma - 1] + ' ' + ya;
+  if (ya === yb) return MONTH_NAMES[+ma - 1] + ' – ' + MONTH_NAMES[+mb - 1] + ' ' + ya;
+  return MONTH_NAMES[+ma - 1] + ' ' + ya + ' – ' + MONTH_NAMES[+mb - 1] + ' ' + yb;
+}
+function niceTicks(max) {
+  if (max <= 0) return { max: 1, ticks: [0, 1] };
+  const raw = max / 4;
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(k => k * pow).find(s => s >= raw);
+  const top = Math.ceil(max / step) * step;
+  const ticks = [];
+  for (let t = 0; t <= top + step / 2; t += step) ticks.push(t);
+  return { max: top, ticks };
+}
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function svgEl(tag, attrs) {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  // המסמך RTL אבל מערכת הצירים של הגרף בנויה LTR — בלי זה עוגני הטקסט מתהפכים
+  if (tag === 'svg') e.style.direction = 'ltr';
+  return e;
+}
+function hashString(s) { // FNV-1a לזיהוי נתונים כפולים
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); }
+  return (h >>> 0).toString(16) + '-' + s.length;
+}
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+/* ============================================================
+   פענוח קבצים — זיהוי סוג הדוח ובניית נתונים מצטברים
+   ============================================================ */
+function detectAndParse(wb, fileName) {
+  const names = wb.SheetNames;
+  if (names.includes('פגומים') && names.includes('SUM')) return parseDamaged(wb, fileName);
+  // חיפוש גיליון קריאות שירות (יכול לא להיות הגיליון הראשון)
+  for (const n of names) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[n], { header: 1, defval: null, raw: false });
+    if (rows[0] && rows[0].includes('מס קריאת שירות') && rows[0].includes('מוצדק'))
+      return parseServiceCalls(wb, fileName, rows);
+  }
+  const first = XLSX.utils.sheet_to_json(wb.Sheets[names[0]], { header: 1, defval: null, raw: false });
+  if (first[0] && first[0].includes('מסמך ספירת מלאי')) return parseInventory(wb, fileName, first);
+  return parseGeneric(wb, fileName);
+}
+
+/* --- דוח קריאות שירות (מוצדק / לא מוצדק) --- */
+function parseServiceCalls(wb, fileName, rows) {
+  const h = rows[0];
+  const di = h.indexOf('תאריך קריאת שירות'), ci = h.indexOf('מס קריאת שירות'),
+        ji = h.indexOf('מוצדק'), cu = h.indexOf('שם לקוח'),
+        ti = h.indexOf('תיאור סוג קריאה'), ri = h.indexOf('תיאור סיבה');
+
+  // שורה לכל פריט בקריאה — סופרים קריאות ייחודיות לפי מס קריאה
+  const calls = new Map();
+  for (const r of rows.slice(1)) {
+    if (!r[ci]) continue;
+    if (!calls.has(r[ci])) {
+      const p = String(r[di] || '').split('/'); // M/D/YY
+      const month = p.length >= 3 ? '20' + p[2].slice(-2) + '/' + String(p[0]).padStart(2, '0') : null;
+      calls.set(r[ci], {
+        month,
+        just: r[ji] || 'ללא סיווג',
+        customer: r[cu] || 'ללא לקוח',
+        type: r[ti] || 'ללא סוג',
+        reason: r[ri] || 'ללא סיבה',
+        lines: 0,
+      });
+    }
+    calls.get(r[ci]).lines++;
+  }
+
+  const JUST_ORDER = ['מוצדק', 'לא מוצדק', 'שירות'];
+  const byMonth = new Map(), byCustomer = new Map(), byType = new Map(), byReason = new Map();
+  const justTotals = {};
+  for (const c of calls.values()) {
+    if (c.month) {
+      const m = byMonth.get(c.month) || {};
+      m[c.just] = (m[c.just] || 0) + 1;
+      byMonth.set(c.month, m);
+    }
+    justTotals[c.just] = (justTotals[c.just] || 0) + 1;
+    for (const [map, key] of [[byCustomer, c.customer], [byType, c.type], [byReason, c.reason]]) {
+      const e = map.get(key) || { total: 0, just: 0, unjust: 0 };
+      e.total++;
+      if (c.just === 'מוצדק') e.just++;
+      if (c.just === 'לא מוצדק') e.unjust++;
+      map.set(key, e);
+    }
+  }
+  const months = [...byMonth.keys()].sort();
+  const justKinds = JUST_ORDER.filter(k => justTotals[k]);
+  Object.keys(justTotals).forEach(k => { if (!justKinds.includes(k)) justKinds.push(k); });
+  const toSorted = m => [...m.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.total - a.total);
+  return {
+    kind: 'calls', fileName,
+    months, justKinds, justTotals,
+    byMonth: months.map(m => ({ m, ...Object.fromEntries(justKinds.map(k => [k, byMonth.get(m)[k] || 0])) })),
+    byCustomer: toSorted(byCustomer),
+    byType: toSorted(byType),
+    byReason: toSorted(byReason),
+    totalCalls: calls.size,
+    totalLines: rows.length - 1,
+  };
+}
+
+/* --- דוח העברות למחסן פגומים --- */
+function parseDamaged(wb, fileName) {
+  const out = { kind: 'damaged', fileName };
+
+  // גיליון SUM: חודש × סיבה × שווי — מדלגים על שורות סיכום־ביניים (סיבה ריקה)
+  const sum = XLSX.utils.sheet_to_json(wb.Sheets['SUM'], { header: 1, defval: null, raw: false });
+  const hIdx = sum.findIndex(r => r && r.includes('Posting Date Year/Month'));
+  const byMonth = new Map(), byReason = new Map();
+  for (const r of sum.slice(hIdx + 1)) {
+    const [month, reason, , qty, sumNis] = r;
+    if (!month || !/^\d{4}\/\d{2}$/.test(month) || !reason) continue;
+    const m = byMonth.get(month) || { nis: 0, qty: 0 };
+    m.nis += num(sumNis); m.qty += num(qty); byMonth.set(month, m);
+    const rr = byReason.get(reason) || { nis: 0, qty: 0 };
+    rr.nis += num(sumNis); rr.qty += num(qty); byReason.set(reason, rr);
+  }
+  out.months = [...byMonth.keys()].sort();
+  out.sumByMonth = out.months.map(m => ({ m, ...byMonth.get(m) }));
+  out.reasons = [...byReason.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.nis - a.nis);
+  out.sumTotal = out.sumByMonth.reduce((s, r) => s + r.nis, 0);
+
+  // גיליון פגומים: פירוט ברמת פריט
+  const pg = XLSX.utils.sheet_to_json(wb.Sheets['פגומים'], { header: 1, defval: null, raw: false });
+  const pIdx = pg.findIndex(r => r && r.includes('שם הפריט'));
+  const ph = pg[pIdx];
+  const ni = ph.indexOf('שם הפריט'), qi = ph.indexOf('כמות פגומים'), pi = ph.indexOf('מחיר'), ri = ph.indexOf('תיאור סיבה');
+  const items = new Map(), dReasons = new Map();
+  let dRows = 0, dQty = 0, dVal = 0;
+  for (const r of pg.slice(pIdx + 1)) {
+    if (!r[ni]) continue;
+    const q = num(r[qi]), val = q * num(r[pi]);
+    dRows++; dQty += q; dVal += val;
+    const it = items.get(r[ni]) || { val: 0, qty: 0 };
+    it.val += val; it.qty += q; items.set(r[ni], it);
+    const reason = r[ri] || 'ללא סיבה';
+    const dr = dReasons.get(reason) || { val: 0, qty: 0 };
+    dr.val += val; dr.qty += q; dReasons.set(reason, dr);
+  }
+  out.detail = {
+    rows: dRows, qty: dQty, val: dVal,
+    topItems: [...items.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.val - a.val),
+    byReason: [...dReasons.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.val - a.val),
+  };
+
+  // גיליון השמדות
+  out.dest = null;
+  if (wb.Sheets['השמדות']) {
+    const ds = XLSX.utils.sheet_to_json(wb.Sheets['השמדות'], { header: 1, defval: null, raw: false });
+    const dIdx = ds.findIndex(r => r && r.includes('Product Number'));
+    const dh = ds[dIdx];
+    const mi = dh.indexOf('Posting Date Year/Month'), dqi = dh.indexOf('New Quantity'), dpi = dh.indexOf('Yarpa Price');
+    const dm = new Map();
+    let tot = 0, totQ = 0, totRows = 0;
+    for (const r of ds.slice(dIdx + 1)) {
+      const m = r[mi];
+      if (!m || !/^\d{4}\/\d{2}$/.test(m)) continue;
+      const v = num(r[dqi]) * num(r[dpi]);
+      const e = dm.get(m) || { nis: 0, qty: 0, rows: 0 };
+      e.nis += v; e.qty += num(r[dqi]); e.rows++; dm.set(m, e);
+      tot += v; totQ += num(r[dqi]); totRows++;
+    }
+    const dMonths = [...dm.keys()].sort();
+    out.dest = { byMonth: dMonths.map(m => ({ m, ...dm.get(m) })), total: tot, qty: totQ, rows: totRows };
+  }
+  return out;
+}
+
+/* --- דוח ספירות מלאי --- */
+function parseInventory(wb, fileName, rows) {
+  const h = rows[0];
+  const di = h.indexOf('נוצר בתאריך'), ri = h.indexOf('תיאור סיבה'),
+        ai = h.indexOf('כמות הפרש מוחלטת'), zi = h.indexOf('אזור פעילות'),
+        ddi = h.indexOf('כמות ההפרש'), yi = h.indexOf('שנת מסמך');
+  const byMonth = new Map(), byReason = new Map(), byArea = new Map();
+  let total = 0, diffRows = 0, absQty = 0;
+  for (const r of rows.slice(1)) {
+    if (!r[di]) continue;
+    total++;
+    // תאריך בפורמט M/D/YY
+    const p = String(r[di]).split('/');
+    const year = r[yi] || ('20' + (p[2] || '').slice(-2));
+    const m = year + '/' + String(p[0]).padStart(2, '0');
+    const abs = num(r[ai]);
+    const isDiff = abs > 0;
+    if (isDiff) { diffRows++; absQty += abs; }
+
+    const mm = byMonth.get(m) || { counts: 0, diffRows: 0, absQty: 0 };
+    mm.counts++; if (isDiff) { mm.diffRows++; mm.absQty += abs; } byMonth.set(m, mm);
+
+    const reason = r[ri] || 'ללא סיבה';
+    const rr = byReason.get(reason) || { counts: 0, diffRows: 0 };
+    rr.counts++; if (isDiff) rr.diffRows++; byReason.set(reason, rr);
+
+    const area = r[zi] || 'ללא אזור';
+    const aa = byArea.get(area) || { counts: 0, diffRows: 0, absQty: 0 };
+    aa.counts++; if (isDiff) { aa.diffRows++; aa.absQty += abs; } byArea.set(area, aa);
+  }
+  const months = [...byMonth.keys()].sort();
+  return {
+    kind: 'inventory', fileName,
+    months,
+    byMonth: months.map(m => ({ m, ...byMonth.get(m) })),
+    byReason: [...byReason.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.counts - a.counts),
+    byArea: [...byArea.entries()].map(([name, v]) => ({ name, ...v })).sort((a, b) => b.counts - a.counts),
+    total, diffRows, absQty,
+  };
+}
+
+/* --- קובץ לא מזוהה: ניסיון גרף כללי + טבלה --- */
+function parseGeneric(wb, fileName) {
+  const name = wb.SheetNames[0];
+  const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: null, raw: false });
+  // מציאת שורת כותרת: השורה הראשונה שרובה טקסט ואחריה נתונים
+  let hIdx = rows.findIndex(r => r && r.filter(c => c !== null && c !== '').length >= 2);
+  if (hIdx < 0) hIdx = 0;
+  const header = (rows[hIdx] || []).map(c => c === null ? '' : String(c));
+  const data = rows.slice(hIdx + 1).filter(r => r && r.some(c => c !== null && c !== ''));
+  // עמודת תווית = ראשונה טקסטואלית; עמודת ערך = ראשונה מספרית
+  let li = -1, vi = -1;
+  for (let c = 0; c < header.length; c++) {
+    const sample = data.slice(0, 30).map(r => r[c]).filter(v => v !== null && v !== '');
+    if (!sample.length) continue;
+    const numeric = sample.filter(v => !isNaN(num(v)) && num(v) !== 0 || String(v).trim() === '0').length / sample.length > .7;
+    if (!numeric && li < 0) li = c;
+    if (numeric && vi < 0 && c !== li) vi = c;
+  }
+  let agg = null;
+  if (li >= 0 && vi >= 0) {
+    const m = new Map();
+    for (const r of data) {
+      const k = r[li];
+      if (k === null || k === '') continue;
+      m.set(String(k), (m.get(String(k)) || 0) + num(r[vi]));
+    }
+    agg = { label: header[li] || 'קטגוריה', value: header[vi] || 'ערך',
+            items: [...m.entries()].map(([name, v]) => ({ name, val: v })).sort((a, b) => b.val - a.val) };
+  }
+  return { kind: 'generic', fileName, sheetName: name, header, rowCount: data.length, agg,
+           sampleRows: data.slice(0, 80) };
+}
+
+/* ============================================================
+   מנוע גרפים — SVG בכתיבה ידנית, RTL
+   רוחב קבוע 1140 × גובה 470 בתוך שקף 1280×720
+   ============================================================ */
+const CW = 1140, CH = 470;
+
+function makeChartWrap(body) {
+  const wrap = el('div', 'chart-wrap');
+  body.appendChild(wrap);
+  const tip = el('div', 'viz-tooltip');
+  wrap.appendChild(tip);
+  return { wrap, tip };
+}
+function showTip(tip, wrap, x, y, title, rows) {
+  tip.textContent = '';
+  const t = el('div', 'tt-title', title);
+  tip.appendChild(t);
+  for (const r of rows) {
+    const row = el('div', 'tt-row');
+    if (r.color) { const k = el('span', 'tt-key'); k.style.background = r.color; row.appendChild(k); }
+    const b = el('b', null, r.value);
+    const s = el('span', null, r.label);
+    row.appendChild(b); row.appendChild(s);
+    tip.appendChild(row);
+  }
+  tip.style.opacity = '1';
+  const W = wrap.clientWidth || CW;
+  const tw = tip.offsetWidth, th = tip.offsetHeight;
+  let px = x - tw / 2;
+  px = Math.max(4, Math.min(px, W - tw - 4));
+  let py = y - th - 14;
+  if (py < 0) py = y + 18;
+  tip.style.left = px + 'px';
+  tip.style.top = py + 'px';
+}
+function hideTip(tip) { tip.style.opacity = '0'; }
+
+/* עמודות אנכיות — ציר זמן מימין לשמאל (RTL) */
+function columnChart(body, opts) {
+  // opts: {labels, values, fmt, fmtAxis, seriesColor, highlight: idx->bool, tooltipExtra: i=>[{label,value}]}
+  const { wrap, tip } = makeChartWrap(body);
+  const svg = svgEl('svg', { viewBox: `0 0 ${CW} ${CH}`, preserveAspectRatio: 'xMidYMid meet' });
+  wrap.appendChild(svg);
+  const padTop = 34, padBottom = 46, padRight = 14, padLeft = 78;
+  const plotW = CW - padRight - padLeft, plotH = CH - padTop - padBottom;
+  const n = opts.values.length;
+  const { max, ticks } = niceTicks(Math.max(...opts.values));
+  const y = v => padTop + plotH - (v / max) * plotH;
+  const bandW = plotW / n;
+  const barW = Math.min(24, bandW * .55);
+  const color = opts.seriesColor || css('--series-1');
+  const fmt = opts.fmt || (v => fmtInt.format(v));
+  const fmtAxis = opts.fmtAxis || (v => fmtCompact.format(v));
+
+  // רשת אופקית + ערכי ציר בצד ימין... (בעברית — הציר בימין)
+  for (const t of ticks) {
+    svg.appendChild(svgEl('line', { x1: padRight, x2: CW - padLeft, y1: y(t), y2: y(t),
+      stroke: t === 0 ? css('--baseline') : css('--grid'), 'stroke-width': 1 }));
+    const lbl = svgEl('text', { x: CW - padLeft + 10, y: y(t) + 4, 'font-size': 13,
+      fill: css('--muted'), 'text-anchor': 'start' });
+    lbl.textContent = fmtAxis(t);
+    svg.appendChild(lbl);
+  }
+
+  opts.values.forEach((v, i) => {
+    // RTL: הפריט הראשון בימין
+    const cx = CW - padLeft - bandW * i - bandW / 2;
+    const x0 = cx - barW / 2;
+    const barTop = y(v), barH = Math.max(0, padTop + plotH - barTop);
+    const c = (opts.highlight && opts.highlight(i)) ? css('--series-2') : color;
+    const r = Math.min(4, barH); // קצה עליון מעוגל, בסיס ישר
+    const d = `M ${x0} ${padTop + plotH} V ${barTop + r} Q ${x0} ${barTop} ${x0 + r} ${barTop} H ${x0 + barW - r} Q ${x0 + barW} ${barTop} ${x0 + barW} ${barTop + r} V ${padTop + plotH} Z`;
+    const bar = svgEl('path', { d, fill: c });
+    svg.appendChild(bar);
+
+    // תווית ערך על הכיפה
+    if (n <= 12) {
+      const val = svgEl('text', { x: cx, y: barTop - 8, 'font-size': 13.5, 'font-weight': 700,
+        fill: css('--ink-2'), 'text-anchor': 'middle' });
+      val.textContent = fmt(v);
+      svg.appendChild(val);
+    }
+    // תווית קטגוריה
+    const cat = svgEl('text', { x: cx, y: padTop + plotH + 24, 'font-size': 13.5,
+      fill: css('--ink-2'), 'text-anchor': 'middle' });
+    cat.textContent = opts.labels[i];
+    svg.appendChild(cat);
+
+    // אזור פגיעה לעכבר — כל רוחב הרצועה
+    const hit = svgEl('rect', { x: cx - bandW / 2, y: padTop, width: bandW, height: plotH, fill: 'transparent' });
+    hit.style.cursor = 'default';
+    hit.addEventListener('pointermove', () => {
+      bar.setAttribute('fill-opacity', '0.82');
+      const rows = [{ label: '', value: fmt(v), color: c }];
+      if (opts.tooltipExtra) rows.push(...opts.tooltipExtra(i));
+      const scale = wrap.clientWidth / CW;
+      showTip(tip, wrap, cx * scale, barTop * scale, opts.labels[i], rows);
+    });
+    hit.addEventListener('pointerleave', () => { bar.removeAttribute('fill-opacity'); hideTip(tip); });
+    svg.appendChild(hit);
+  });
+  return svg;
+}
+
+/* עמודות מקובצות — כמה סדרות זו לצד זו, עם מקרא */
+function groupedColumnChart(body, opts) {
+  // opts: {labels, series: [{name, values, color}], fmt, fmtAxis}
+  const { wrap, tip } = makeChartWrap(body);
+
+  // מקרא — חובה כשיש יותר מסדרה אחת
+  const legend = el('div', 'legend');
+  for (const s of opts.series) {
+    const item = el('div', 'lg-item');
+    const sw = el('span', 'lg-swatch');
+    sw.style.background = s.color;
+    item.appendChild(sw);
+    item.appendChild(el('span', null, s.name));
+    legend.appendChild(item);
+  }
+  wrap.appendChild(legend);
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${CW} ${CH}`, preserveAspectRatio: 'xMidYMid meet' });
+  wrap.appendChild(svg);
+  const padTop = 42, padBottom = 46, padRight = 14, padLeft = 78;
+  const plotW = CW - padRight - padLeft, plotH = CH - padTop - padBottom;
+  const n = opts.labels.length, k = opts.series.length;
+  const allMax = Math.max(...opts.series.flatMap(s => s.values));
+  const { max, ticks } = niceTicks(allMax);
+  const y = v => padTop + plotH - (v / max) * plotH;
+  const bandW = plotW / n;
+  const barW = Math.min(24, (bandW * 0.7 - (k - 1) * 2) / k);
+  const groupW = barW * k + (k - 1) * 2; // רווח 2px בצבע הרקע בין עמודות צמודות
+  const fmt = opts.fmt || (v => fmtInt.format(v));
+  const fmtAxis = opts.fmtAxis || (v => fmtCompact.format(v));
+
+  for (const t of ticks) {
+    svg.appendChild(svgEl('line', { x1: padRight, x2: CW - padLeft, y1: y(t), y2: y(t),
+      stroke: t === 0 ? css('--baseline') : css('--grid'), 'stroke-width': 1 }));
+    const lbl = svgEl('text', { x: CW - padLeft + 10, y: y(t) + 4, 'font-size': 13,
+      fill: css('--muted'), 'text-anchor': 'start' });
+    lbl.textContent = fmtAxis(t);
+    svg.appendChild(lbl);
+  }
+
+  opts.labels.forEach((label, i) => {
+    const cx = CW - padLeft - bandW * i - bandW / 2; // RTL: קבוצה ראשונה בימין
+    const bars = [];
+    opts.series.forEach((s, si) => {
+      // בתוך הקבוצה: הסדרה הראשונה בימין
+      const x0 = cx + groupW / 2 - (si + 1) * barW - si * 2;
+      const v = s.values[i];
+      const barTop = y(v), barH = Math.max(0, padTop + plotH - barTop);
+      const r = Math.min(4, barH, barW / 2);
+      const d = `M ${x0} ${padTop + plotH} V ${barTop + r} Q ${x0} ${barTop} ${x0 + r} ${barTop} H ${x0 + barW - r} Q ${x0 + barW} ${barTop} ${x0 + barW} ${barTop + r} V ${padTop + plotH} Z`;
+      const bar = svgEl('path', { d, fill: s.color });
+      svg.appendChild(bar);
+      bars.push(bar);
+      if (n * k <= 15) {
+        const val = svgEl('text', { x: x0 + barW / 2, y: barTop - 7, 'font-size': 12.5, 'font-weight': 700,
+          fill: css('--ink-2'), 'text-anchor': 'middle' });
+        val.textContent = fmt(v);
+        svg.appendChild(val);
+      }
+    });
+    const cat = svgEl('text', { x: cx, y: padTop + plotH + 24, 'font-size': 13.5,
+      fill: css('--ink-2'), 'text-anchor': 'middle' });
+    cat.textContent = label;
+    svg.appendChild(cat);
+
+    const hit = svgEl('rect', { x: cx - bandW / 2, y: padTop, width: bandW, height: plotH, fill: 'transparent' });
+    hit.addEventListener('pointermove', () => {
+      bars.forEach(b => b.setAttribute('fill-opacity', '0.85'));
+      const scale = wrap.clientWidth / CW;
+      const topY = Math.min(...opts.series.map(s => y(s.values[i])));
+      showTip(tip, wrap, cx * scale, topY * scale, label,
+        opts.series.map(s => ({ label: s.name, value: fmt(s.values[i]), color: s.color })));
+    });
+    hit.addEventListener('pointerleave', () => { bars.forEach(b => b.removeAttribute('fill-opacity')); hideTip(tip); });
+    svg.appendChild(hit);
+  });
+  return svg;
+}
+
+/* עמודות אופקיות — קטגוריות בימין, עמודה גדלה שמאלה */
+function barChartH(body, opts) {
+  // opts: {items:[{name, val, extra}], fmt, fmtAxis, seriesColor, noteFn}
+  const { wrap, tip } = makeChartWrap(body);
+  const svg = svgEl('svg', { viewBox: `0 0 ${CW} ${CH}`, preserveAspectRatio: 'xMidYMid meet' });
+  wrap.appendChild(svg);
+  const items = opts.items;
+  const n = items.length;
+  const labelW = 300, padLeft = 90, padTop = 8, padBottom = 30;
+  const plotW = CW - labelW - padLeft, plotH = CH - padTop - padBottom;
+  const x0 = CW - labelW; // בסיס בימין
+  const { max, ticks } = niceTicks(Math.max(...items.map(d => d.val)));
+  const w = v => (v / max) * plotW;
+  const bandH = plotH / n;
+  const barH = Math.min(24, bandH * .6);
+  const color = opts.seriesColor || css('--series-1');
+  const fmt = opts.fmt || (v => fmtInt.format(v));
+  const fmtAxis = opts.fmtAxis || (v => fmtCompact.format(v));
+
+  // רשת אנכית
+  for (const t of ticks) {
+    const xx = x0 - w(t);
+    svg.appendChild(svgEl('line', { x1: xx, x2: xx, y1: padTop, y2: padTop + plotH,
+      stroke: t === 0 ? css('--baseline') : css('--grid'), 'stroke-width': 1 }));
+    const lbl = svgEl('text', { x: xx, y: padTop + plotH + 20, 'font-size': 12.5,
+      fill: css('--muted'), 'text-anchor': 'middle' });
+    lbl.textContent = fmtAxis(t);
+    svg.appendChild(lbl);
+  }
+
+  items.forEach((d, i) => {
+    const cy = padTop + bandH * i + bandH / 2;
+    const y0 = cy - barH / 2;
+    const bw = w(d.val);
+    const r = Math.min(4, bw);
+    // קצה נתונים מעוגל בשמאל, בסיס ישר בימין
+    const path = `M ${x0} ${y0} H ${x0 - bw + r} Q ${x0 - bw} ${y0} ${x0 - bw} ${y0 + r} V ${y0 + barH - r} Q ${x0 - bw} ${y0 + barH} ${x0 - bw + r} ${y0 + barH} H ${x0} Z`;
+    const bar = svgEl('path', { d: path, fill: color });
+    svg.appendChild(bar);
+
+    // שם קטגוריה בימין
+    const name = d.name.length > 34 ? d.name.slice(0, 33) + '…' : d.name;
+    const cat = svgEl('text', { x: x0 + 12, y: cy + 4.5, 'font-size': 14, 'font-weight': 600,
+      fill: css('--ink'), 'text-anchor': 'start' });
+    cat.textContent = name;
+    svg.appendChild(cat);
+
+    // ערך בקצה העמודה
+    const val = svgEl('text', { x: x0 - bw - 8, y: cy + 4.5, 'font-size': 13, 'font-weight': 700,
+      fill: css('--ink-2'), 'text-anchor': 'end' });
+    val.textContent = fmt(d.val);
+    svg.appendChild(val);
+
+    const hit = svgEl('rect', { x: 0, y: padTop + bandH * i, width: CW, height: bandH, fill: 'transparent' });
+    hit.addEventListener('pointermove', () => {
+      bar.setAttribute('fill-opacity', '0.82');
+      const rows = [{ label: '', value: fmt(d.val), color }];
+      if (d.extra) rows.push(...d.extra);
+      const scale = wrap.clientWidth / CW;
+      showTip(tip, wrap, (x0 - bw / 2) * scale, y0 * scale, d.name, rows);
+    });
+    hit.addEventListener('pointerleave', () => { bar.removeAttribute('fill-opacity'); hideTip(tip); });
+    svg.appendChild(hit);
+  });
+  return svg;
+}
+
+/* גרף קו — לאחוזים / מגמה */
+function lineChart(body, opts) {
+  // opts: {labels, values, fmt, domainMin}
+  const { wrap, tip } = makeChartWrap(body);
+  const svg = svgEl('svg', { viewBox: `0 0 ${CW} ${CH}`, preserveAspectRatio: 'xMidYMid meet' });
+  wrap.appendChild(svg);
+  const padTop = 30, padBottom = 46, padRight = 60, padLeft = 78;
+  const plotW = CW - padRight - padLeft, plotH = CH - padTop - padBottom;
+  const n = opts.values.length;
+  const vMax = Math.max(...opts.values), vMin = Math.min(...opts.values);
+  let domainMin = opts.domainMin !== undefined ? opts.domainMin : 0;
+  if (vMin < domainMin) domainMin = Math.floor(vMin); // אף נקודה לא יורדת מתחת לציר
+  const top = Math.min(100, Math.ceil(vMax + (vMax - domainMin) * .1));
+  const y = v => padTop + plotH - ((v - domainMin) / (top - domainMin || 1)) * plotH;
+  const x = i => CW - padLeft - (plotW / (n - 1 || 1)) * i; // RTL
+  const color = css('--series-1');
+  const fmt = opts.fmt || (v => fmtInt.format(v));
+
+  const tickCount = 5;
+  for (let k = 0; k <= tickCount; k++) {
+    const t = domainMin + ((top - domainMin) / tickCount) * k;
+    svg.appendChild(svgEl('line', { x1: padRight, x2: CW - padLeft, y1: y(t), y2: y(t),
+      stroke: k === 0 ? css('--baseline') : css('--grid'), 'stroke-width': 1 }));
+    const lbl = svgEl('text', { x: CW - padLeft + 10, y: y(t) + 4, 'font-size': 13,
+      fill: css('--muted'), 'text-anchor': 'start' });
+    lbl.textContent = fmt(t);
+    svg.appendChild(lbl);
+  }
+
+  // קו
+  let d = '';
+  opts.values.forEach((v, i) => { d += (i ? ' L ' : 'M ') + x(i) + ' ' + y(v); });
+  svg.appendChild(svgEl('path', { d, fill: 'none', stroke: color, 'stroke-width': 2,
+    'stroke-linejoin': 'round', 'stroke-linecap': 'round' }));
+
+  // נקודות עם טבעת לבנה + תוויות
+  opts.values.forEach((v, i) => {
+    svg.appendChild(svgEl('circle', { cx: x(i), cy: y(v), r: 7, fill: color,
+      stroke: css('--slide-surface'), 'stroke-width': 2 }));
+    const val = svgEl('text', { x: x(i), y: y(v) - 15, 'font-size': 14, 'font-weight': 700,
+      fill: css('--ink-2'), 'text-anchor': 'middle' });
+    val.textContent = fmt(v);
+    svg.appendChild(val);
+    const cat = svgEl('text', { x: x(i), y: padTop + plotH + 24, 'font-size': 13.5,
+      fill: css('--ink-2'), 'text-anchor': 'middle' });
+    cat.textContent = opts.labels[i];
+    svg.appendChild(cat);
+  });
+
+  // שכבת ריחוף — צלב מציאת X קרוב
+  const cross = svgEl('line', { y1: padTop, y2: padTop + plotH, stroke: css('--baseline'),
+    'stroke-width': 1, opacity: 0 });
+  svg.insertBefore(cross, svg.firstChild);
+  const hitAll = svgEl('rect', { x: padRight, y: padTop, width: plotW, height: plotH, fill: 'transparent' });
+  hitAll.addEventListener('pointermove', ev => {
+    const rect = svg.getBoundingClientRect();
+    const mx = (ev.clientX - rect.left) * (CW / rect.width);
+    let best = 0, bd = Infinity;
+    for (let i = 0; i < n; i++) { const dd = Math.abs(x(i) - mx); if (dd < bd) { bd = dd; best = i; } }
+    cross.setAttribute('x1', x(best)); cross.setAttribute('x2', x(best));
+    cross.setAttribute('opacity', '1');
+    const scale = wrap.clientWidth / CW;
+    showTip(tip, wrap, x(best) * scale, y(opts.values[best]) * scale, opts.labels[best],
+      [{ label: opts.seriesName || '', value: fmt(opts.values[best]), color }]);
+  });
+  hitAll.addEventListener('pointerleave', () => { cross.setAttribute('opacity', '0'); hideTip(tip); });
+  svg.appendChild(hitAll);
+  return svg;
+}
+
+/* ============================================================
+   בניית שקפים
+   ============================================================ */
+function slideShell(kicker, title, sub, sectionName) {
+  const s = el('section', 'slide');
+  const head = el('div', 's-head');
+  if (kicker) head.appendChild(el('div', 's-kicker', kicker));
+  const h2 = el('h2', null, title);
+  head.appendChild(h2);
+  if (sub) head.appendChild(el('div', 's-sub', sub));
+  s.appendChild(head);
+  const body = el('div', 's-body');
+  s.appendChild(body);
+  const foot = el('div', 's-foot');
+  foot.appendChild(el('span', null, 'Novolog Ltd · מערכת הגרפים'));
+  const pageNum = el('span', 'page-num', '');
+  foot.appendChild(pageNum);
+  s.appendChild(foot);
+  return { s, body, title, sectionName };
+}
+
+function addTableToggle(body, head, rows) {
+  const btn = el('button', 'tbl-btn', 'הצג טבלה');
+  const overlay = el('div', 'table-overlay');
+  const table = el('table');
+  const thead = el('thead'); const trh = el('tr');
+  head.forEach(h => trh.appendChild(el('th', null, h)));
+  thead.appendChild(trh); table.appendChild(thead);
+  const tbody = el('tbody');
+  rows.forEach(r => {
+    const tr = el('tr');
+    r.forEach((c, i) => {
+      const td = el('td', typeof c === 'number' ? 'num' : null,
+        typeof c === 'number' ? fmtInt.format(c) : String(c));
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  overlay.appendChild(table);
+  body.appendChild(overlay);
+  body.appendChild(btn);
+  btn.addEventListener('click', () => {
+    const show = !overlay.classList.contains('show');
+    overlay.classList.toggle('show', show);
+    btn.textContent = show ? 'הצג גרף' : 'הצג טבלה';
+  });
+}
+
+function kpiRow(body, kpis) {
+  const row = el('div', 'kpi-row');
+  kpis.forEach(k => {
+    const t = el('div', 'kpi');
+    t.appendChild(el('div', 'k-label', k.label));
+    t.appendChild(el('div', 'k-value', k.value));
+    if (k.note) t.appendChild(el('div', 'k-note', k.note));
+    row.appendChild(t);
+  });
+  body.appendChild(row);
+  return row;
+}
+
+/* --- שקף פתיחה ממותג (Novolog Logistics) --- */
+function buildBrandCoverSlide(datasets) {
+  const s = el('section', 'slide brand-cover');
+
+  const hero = el('div', 'bc-hero');
+  hero.setAttribute('dir', 'ltr');
+  const logo = el('img');
+  logo.src = 'novolog-logo-white.png';
+  logo.alt = 'Novolog';
+  hero.appendChild(logo);
+  s.appendChild(hero);
+
+  const title = el('div', 'bc-title');
+  title.appendChild(el('h2', null, 'מצגת נתונים'));
+  const names = datasets.map(d =>
+    d.kind === 'damaged' ? 'העברות למחסן פגומים' :
+    d.kind === 'inventory' ? 'ספירות מלאי' :
+    d.fileName.replace(/\.(xlsx|xls|xlsm|csv)$/i, ''));
+  const dateStr = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
+  title.appendChild(el('div', 'bc-sub', [...new Set(names)].join(' · ')));
+  title.appendChild(el('div', 'bc-sub', 'הופק בתאריך ' + dateStr));
+  s.appendChild(title);
+
+  const band = el('div', 'bc-band');
+  band.setAttribute('dir', 'ltr');
+  band.setAttribute('aria-hidden', 'true');
+  ['bb-yellow', 'bb-green', 'bb-blue'].forEach(c => band.appendChild(el('div', c)));
+  s.appendChild(band);
+
+  return { s, title: 'שער ראשי', sectionName: 'פתיחה' };
+}
+
+/* --- שקפים לדוח פגומים --- */
+function buildDamagedSlides(d, sectionTitle) {
+  const slides = [];
+  const section = sectionTitle || 'העברות למחסן פגומים';
+  const period = periodLabel(d.months);
+
+  // שער
+  {
+    const { s } = slideShell(null, '', '', section);
+    s.classList.add('cover');
+    s.querySelector('.s-head').remove();
+    s.querySelector('.s-body').remove();
+    const wrap = el('div');
+    const kick = el('div', 'cover-kicker', 'Novolog Ltd');
+    wrap.appendChild(kick);
+    wrap.appendChild(el('h2', null, section));
+    const sub = el('div', 's-sub', period + ' · ' + d.fileName);
+    wrap.appendChild(sub);
+    const kpis = el('div', 'kpi-row');
+    wrap.appendChild(kpis);
+    s.insertBefore(wrap, s.querySelector('.s-foot'));
+    const row = [
+      { label: 'שווי העברות כולל (SUM)', value: nisCompact(d.sumTotal), note: 'לפי מחירון יַרְפָּא' },
+      { label: 'שווי פגומים (פירוט)', value: nisCompact(d.detail.val), note: fmtInt.format(d.detail.rows) + ' שורות פריט' },
+      { label: 'כמות יחידות פגומות', value: fmtCompact.format(d.detail.qty), note: '' },
+    ];
+    if (d.dest) row.push({ label: 'שווי השמדות', value: nisCompact(d.dest.total), note: fmtInt.format(d.dest.rows) + ' שורות' });
+    row.forEach(k => {
+      const t = el('div', 'kpi');
+      t.appendChild(el('div', 'k-label', k.label));
+      t.appendChild(el('div', 'k-value', k.value));
+      if (k.note) t.appendChild(el('div', 'k-note', k.note));
+      kpis.appendChild(t);
+    });
+    slides.push({ s, title: section + ' — שער', sectionName: section });
+  }
+
+  // שווי לפי חודש
+  {
+    const sh = slideShell(section, 'שווי העברות לפי חודש', 'סכום בש"ח לפי מחירון, מגיליון SUM · ' + period, section);
+    const maxIdx = d.sumByMonth.reduce((bi, r, i, a) => r.nis > a[bi].nis ? i : bi, 0);
+    columnChart(sh.body, {
+      labels: d.sumByMonth.map(r => monthLabel(r.m)),
+      values: d.sumByMonth.map(r => r.nis),
+      fmt: nisCompact, fmtAxis: v => fmtCompact.format(v),
+      highlight: i => i === maxIdx,
+      tooltipExtra: i => [{ label: 'יחידות', value: fmtInt.format(d.sumByMonth[i].qty) }],
+    });
+    addTableToggle(sh.body, ['חודש', 'שווי (₪)', 'יחידות'],
+      d.sumByMonth.map(r => [monthLabel(r.m), Math.round(r.nis), r.qty]));
+    slides.push(sh);
+  }
+
+  // סיבות מובילות
+  {
+    const top = d.reasons.slice(0, 10);
+    const rest = d.reasons.slice(10);
+    const items = top.map(r => ({ name: r.name, val: r.nis, extra: [{ label: 'יחידות', value: fmtInt.format(r.qty) }] }));
+    if (rest.length) items.push({ name: 'אחר (' + rest.length + ' סיבות)', val: rest.reduce((s, r) => s + r.nis, 0) });
+    const sh = slideShell(section, 'עשר הסיבות המובילות להעברה', 'לפי שווי בש"ח · ' + period, section);
+    barChartH(sh.body, { items, fmt: nisCompact });
+    addTableToggle(sh.body, ['סיבה', 'שווי (₪)', 'יחידות'],
+      d.reasons.map(r => [r.name, Math.round(r.nis), r.qty]));
+    slides.push(sh);
+  }
+
+  // פריטים מובילים
+  {
+    const top = d.detail.topItems.slice(0, 10);
+    const sh = slideShell(section, 'עשרת הפריטים הפגומים המובילים', 'לפי שווי בש"ח, מגיליון הפירוט · ' + period, section);
+    barChartH(sh.body, {
+      items: top.map(r => ({ name: r.name, val: r.val, extra: [{ label: 'יחידות', value: fmtInt.format(r.qty) }] })),
+      fmt: nisCompact,
+    });
+    addTableToggle(sh.body, ['פריט', 'שווי (₪)', 'יחידות'],
+      d.detail.topItems.slice(0, 40).map(r => [r.name, Math.round(r.val), r.qty]));
+    slides.push(sh);
+  }
+
+  // פגומים לפי סיבה (פירוט)
+  {
+    const top = d.detail.byReason.slice(0, 10);
+    const rest = d.detail.byReason.slice(10);
+    const items = top.map(r => ({ name: r.name, val: r.val, extra: [{ label: 'יחידות', value: fmtInt.format(r.qty) }] }));
+    if (rest.length) items.push({ name: 'אחר (' + rest.length + ' סיבות)', val: rest.reduce((s, r) => s + r.val, 0) });
+    const sh = slideShell(section, 'פגומים לפי סיבה', 'שווי בש"ח מגיליון הפירוט · ' + period, section);
+    barChartH(sh.body, { items, fmt: nisCompact });
+    addTableToggle(sh.body, ['סיבה', 'שווי (₪)', 'יחידות'],
+      d.detail.byReason.map(r => [r.name, Math.round(r.val), r.qty]));
+    slides.push(sh);
+  }
+
+  // השמדות לפי חודש
+  if (d.dest) {
+    const sh = slideShell(section, 'השמדות לפי חודש', 'שווי בש"ח (כמות × מחיר) · ' + periodLabel(d.dest.byMonth.map(r => r.m)), section);
+    columnChart(sh.body, {
+      labels: d.dest.byMonth.map(r => monthLabel(r.m)),
+      values: d.dest.byMonth.map(r => r.nis),
+      fmt: nisCompact,
+      seriesColor: css('--series-3'),
+      tooltipExtra: i => [
+        { label: 'יחידות', value: fmtInt.format(d.dest.byMonth[i].qty) },
+        { label: 'שורות', value: fmtInt.format(d.dest.byMonth[i].rows) },
+      ],
+    });
+    addTableToggle(sh.body, ['חודש', 'שווי (₪)', 'יחידות', 'שורות'],
+      d.dest.byMonth.map(r => [monthLabel(r.m), Math.round(r.nis), r.qty, r.rows]));
+    slides.push(sh);
+  }
+  return slides;
+}
+
+/* --- שקפים לדוח ספירות מלאי --- */
+function buildInventorySlides(d, sectionTitle) {
+  const slides = [];
+  const section = sectionTitle || 'ספירות מלאי';
+  const period = periodLabel(d.months);
+  const accuracy = 100 * (1 - d.diffRows / d.total);
+
+  // שער
+  {
+    const { s } = slideShell(null, '', '', section);
+    s.classList.add('cover');
+    s.querySelector('.s-head').remove();
+    s.querySelector('.s-body').remove();
+    const wrap = el('div');
+    wrap.appendChild(el('div', 'cover-kicker', 'Novolog Ltd'));
+    wrap.appendChild(el('h2', null, section));
+    wrap.appendChild(el('div', 's-sub', period + ' · ' + d.fileName));
+    const kpis = el('div', 'kpi-row');
+    [
+      { label: 'סה"כ ספירות', value: fmtInt.format(d.total), note: period },
+      { label: 'ספירות עם הפרש', value: fmtInt.format(d.diffRows), note: fmtPct(100 * d.diffRows / d.total) + ' מהספירות' },
+      { label: 'דיוק ספירה', value: fmtPct(accuracy), note: 'ספירות ללא הפרש' },
+      { label: 'כמות הפרש מוחלטת', value: fmtCompact.format(d.absQty), note: 'יחידות' },
+    ].forEach(k => {
+      const t = el('div', 'kpi');
+      t.appendChild(el('div', 'k-label', k.label));
+      t.appendChild(el('div', 'k-value', k.value));
+      if (k.note) t.appendChild(el('div', 'k-note', k.note));
+      kpis.appendChild(t);
+    });
+    wrap.appendChild(kpis);
+    s.insertBefore(wrap, s.querySelector('.s-foot'));
+    slides.push({ s, title: section + ' — שער', sectionName: section });
+  }
+
+  // ספירות לפי חודש
+  {
+    const sh = slideShell(section, 'מספר ספירות לפי חודש', period, section);
+    columnChart(sh.body, {
+      labels: d.byMonth.map(r => monthLabel(r.m)),
+      values: d.byMonth.map(r => r.counts),
+      fmt: v => fmtInt.format(v), fmtAxis: v => fmtCompact.format(v),
+      tooltipExtra: i => [{ label: 'מתוכן עם הפרש', value: fmtInt.format(d.byMonth[i].diffRows) }],
+    });
+    addTableToggle(sh.body, ['חודש', 'ספירות', 'עם הפרש', 'כמות הפרש מוחלטת'],
+      d.byMonth.map(r => [monthLabel(r.m), r.counts, r.diffRows, r.absQty]));
+    slides.push(sh);
+  }
+
+  // ספירות עם הפרש לפי חודש
+  {
+    const sh = slideShell(section, 'ספירות עם הפרש לפי חודש', 'מספר ספירות שבהן נמצא פער בין הספירה לספרים · ' + period, section);
+    columnChart(sh.body, {
+      labels: d.byMonth.map(r => monthLabel(r.m)),
+      values: d.byMonth.map(r => r.diffRows),
+      fmt: v => fmtInt.format(v),
+      seriesColor: css('--series-2'),
+      tooltipExtra: i => [
+        { label: 'מכלל הספירות בחודש', value: fmtPct(100 * d.byMonth[i].diffRows / d.byMonth[i].counts) },
+        { label: 'כמות הפרש מוחלטת', value: fmtInt.format(d.byMonth[i].absQty) },
+      ],
+    });
+    addTableToggle(sh.body, ['חודש', 'ספירות עם הפרש', '% מהספירות', 'כמות הפרש מוחלטת'],
+      d.byMonth.map(r => [monthLabel(r.m), r.diffRows, Math.round(1000 * r.diffRows / r.counts) / 10 + '%', r.absQty]));
+    slides.push(sh);
+  }
+
+  // דיוק לפי חודש
+  {
+    const accVals = d.byMonth.map(r => Math.round(1000 * (1 - r.diffRows / r.counts)) / 10);
+    const axisMin = Math.min(90, Math.floor(Math.min(...accVals)));
+    const sh = slideShell(section, 'דיוק ספירה לפי חודש', 'אחוז הספירות ללא הפרש (ציר מ־' + axisMin + '%) · ' + period, section);
+    lineChart(sh.body, {
+      labels: d.byMonth.map(r => monthLabel(r.m)),
+      values: accVals,
+      fmt: v => v.toLocaleString('he-IL', { maximumFractionDigits: 1 }) + '%',
+      domainMin: 90,
+      seriesName: 'דיוק',
+    });
+    addTableToggle(sh.body, ['חודש', 'ספירות', 'ללא הפרש', 'דיוק'],
+      d.byMonth.map(r => [monthLabel(r.m), r.counts, r.counts - r.diffRows,
+        (Math.round(1000 * (1 - r.diffRows / r.counts)) / 10) + '%']));
+    slides.push(sh);
+  }
+
+  // לפי סיבה
+  {
+    const sh = slideShell(section, 'ספירות לפי סיבה', period, section);
+    barChartH(sh.body, {
+      items: d.byReason.map(r => ({ name: r.name, val: r.counts,
+        extra: [{ label: 'עם הפרש', value: fmtInt.format(r.diffRows) }] })),
+      fmt: v => fmtInt.format(v),
+    });
+    addTableToggle(sh.body, ['סיבה', 'ספירות', 'עם הפרש'],
+      d.byReason.map(r => [r.name, r.counts, r.diffRows]));
+    slides.push(sh);
+  }
+
+  // לפי אזור פעילות
+  {
+    const areas = d.byArea.filter(a => a.counts >= 10);
+    const sh = slideShell(section, 'הפרשים לפי אזור פעילות', 'אחוז הספירות עם הפרש בכל אזור (אזורים עם 10+ ספירות) · ' + period, section);
+    barChartH(sh.body, {
+      items: areas.map(a => ({ name: a.name, val: Math.round(1000 * a.diffRows / a.counts) / 10,
+        extra: [
+          { label: 'ספירות', value: fmtInt.format(a.counts) },
+          { label: 'עם הפרש', value: fmtInt.format(a.diffRows) },
+        ] })).sort((a, b) => b.val - a.val),
+      fmt: v => v.toLocaleString('he-IL', { maximumFractionDigits: 1 }) + '%',
+      fmtAxis: v => v + '%',
+      seriesColor: css('--series-2'),
+    });
+    addTableToggle(sh.body, ['אזור', 'ספירות', 'עם הפרש', '% הפרש'],
+      d.byArea.map(a => [a.name, a.counts, a.diffRows, (Math.round(1000 * a.diffRows / a.counts) / 10) + '%']));
+    slides.push(sh);
+  }
+  return slides;
+}
+
+/* --- שקפים לדוח קריאות שירות --- */
+function buildServiceCallsSlides(d, sectionTitle) {
+  const slides = [];
+  const section = sectionTitle || 'קריאות שירות';
+  const period = periodLabel(d.months);
+  const just = d.justTotals['מוצדק'] || 0;
+  const unjust = d.justTotals['לא מוצדק'] || 0;
+  const justPct = just + unjust ? 100 * just / (just + unjust) : 0;
+  const SERIES_COLORS = [css('--series-1'), css('--series-2'), css('--series-3')];
+
+  // שער
+  {
+    const { s } = slideShell(null, '', '', section);
+    s.classList.add('cover');
+    s.querySelector('.s-head').remove();
+    s.querySelector('.s-body').remove();
+    const wrap = el('div');
+    wrap.appendChild(el('div', 'cover-kicker', 'Novolog Ltd'));
+    wrap.appendChild(el('h2', null, section));
+    wrap.appendChild(el('div', 's-sub', period + ' · ' + d.fileName));
+    const kpis = el('div', 'kpi-row');
+    [
+      { label: 'סה"כ קריאות', value: fmtInt.format(d.totalCalls), note: fmtInt.format(d.totalLines) + ' שורות פריט' },
+      { label: 'קריאות מוצדקות', value: fmtInt.format(just), note: fmtPct(justPct) + ' מהקריאות המסווגות' },
+      { label: 'קריאות לא מוצדקות', value: fmtInt.format(unjust), note: '' },
+      { label: 'קריאות שירות', value: fmtInt.format(d.justTotals['שירות'] || 0), note: 'ללא סיווג הצדקה' },
+    ].forEach(k => {
+      const t = el('div', 'kpi');
+      t.appendChild(el('div', 'k-label', k.label));
+      t.appendChild(el('div', 'k-value', k.value));
+      if (k.note) t.appendChild(el('div', 'k-note', k.note));
+      kpis.appendChild(t);
+    });
+    wrap.appendChild(kpis);
+    s.insertBefore(wrap, s.querySelector('.s-foot'));
+    slides.push({ s, title: section + ' — שער', sectionName: section });
+  }
+
+  // מוצדק מול לא מוצדק לפי חודש
+  {
+    const sh = slideShell(section, 'קריאות לפי חודש — מוצדק מול לא מוצדק', period, section);
+    groupedColumnChart(sh.body, {
+      labels: d.byMonth.map(r => monthLabel(r.m)),
+      series: d.justKinds.map((k, i) => ({
+        name: k,
+        values: d.byMonth.map(r => r[k] || 0),
+        color: SERIES_COLORS[i % SERIES_COLORS.length],
+      })),
+      fmt: v => fmtInt.format(v),
+    });
+    addTableToggle(sh.body, ['חודש', ...d.justKinds, 'סה"כ'],
+      d.byMonth.map(r => [monthLabel(r.m), ...d.justKinds.map(k => r[k] || 0),
+        d.justKinds.reduce((s2, k) => s2 + (r[k] || 0), 0)]));
+    slides.push(sh);
+  }
+
+  // אחוז מוצדקות לפי חודש
+  {
+    const vals = d.byMonth.map(r => {
+      const j = r['מוצדק'] || 0, u = r['לא מוצדק'] || 0;
+      return j + u ? Math.round(1000 * j / (j + u)) / 10 : 0;
+    });
+    const axisMin = Math.max(0, Math.floor(Math.min(...vals) / 10) * 10 - 10);
+    const sh = slideShell(section, 'אחוז הקריאות המוצדקות לפי חודש',
+      'מתוך הקריאות המסווגות מוצדק/לא מוצדק (ציר מ־' + axisMin + '%) · ' + period, section);
+    lineChart(sh.body, {
+      labels: d.byMonth.map(r => monthLabel(r.m)),
+      values: vals,
+      fmt: v => v.toLocaleString('he-IL', { maximumFractionDigits: 1 }) + '%',
+      domainMin: axisMin,
+      seriesName: 'מוצדקות',
+    });
+    addTableToggle(sh.body, ['חודש', 'מוצדק', 'לא מוצדק', '% מוצדק'],
+      d.byMonth.map((r, i) => [monthLabel(r.m), r['מוצדק'] || 0, r['לא מוצדק'] || 0, vals[i] + '%']));
+    slides.push(sh);
+  }
+
+  // סיבות מובילות
+  {
+    const top = d.byReason.slice(0, 10);
+    const rest = d.byReason.slice(10);
+    const items = top.map(r => ({ name: r.name, val: r.total, extra: [
+      { label: 'מוצדק', value: fmtInt.format(r.just) },
+      { label: 'לא מוצדק', value: fmtInt.format(r.unjust) },
+    ] }));
+    if (rest.length) items.push({ name: 'אחר (' + rest.length + ' סיבות)', val: rest.reduce((s2, r) => s2 + r.total, 0) });
+    const sh = slideShell(section, 'הסיבות המובילות לקריאות שירות', 'מספר קריאות · ' + period, section);
+    barChartH(sh.body, { items, fmt: v => fmtInt.format(v) });
+    addTableToggle(sh.body, ['סיבה', 'קריאות', 'מוצדק', 'לא מוצדק'],
+      d.byReason.map(r => [r.name, r.total, r.just, r.unjust]));
+    slides.push(sh);
+  }
+
+  // לקוחות מובילים
+  {
+    const top = d.byCustomer.slice(0, 10);
+    const sh = slideShell(section, 'עשרת הלקוחות המובילים בקריאות', 'מספר קריאות · ' + period, section);
+    barChartH(sh.body, {
+      items: top.map(r => ({ name: r.name, val: r.total, extra: [
+        { label: 'מוצדק', value: fmtInt.format(r.just) },
+        { label: 'לא מוצדק', value: fmtInt.format(r.unjust) },
+      ] })),
+      fmt: v => fmtInt.format(v),
+    });
+    addTableToggle(sh.body, ['לקוח', 'קריאות', 'מוצדק', 'לא מוצדק'],
+      d.byCustomer.slice(0, 40).map(r => [r.name, r.total, r.just, r.unjust]));
+    slides.push(sh);
+  }
+
+  // סוגי קריאה
+  {
+    const top = d.byType.slice(0, 10);
+    const sh = slideShell(section, 'קריאות לפי סוג', period, section);
+    barChartH(sh.body, {
+      items: top.map(r => ({ name: r.name, val: r.total, extra: [
+        { label: 'מוצדק', value: fmtInt.format(r.just) },
+        { label: 'לא מוצדק', value: fmtInt.format(r.unjust) },
+      ] })),
+      fmt: v => fmtInt.format(v),
+      seriesColor: css('--series-3'),
+    });
+    addTableToggle(sh.body, ['סוג קריאה', 'קריאות', 'מוצדק', 'לא מוצדק'],
+      d.byType.map(r => [r.name, r.total, r.just, r.unjust]));
+    slides.push(sh);
+  }
+  return slides;
+}
+
+/* --- שקפים לקובץ לא מזוהה --- */
+function buildGenericSlides(d) {
+  const slides = [];
+  const section = d.fileName.replace(/\.(xlsx|xls|xlsm|csv)$/i, '');
+  if (d.agg && d.agg.items.length > 1) {
+    const top = d.agg.items.slice(0, 12);
+    const sh = slideShell(section, d.agg.value + ' לפי ' + d.agg.label,
+      'זיהוי אוטומטי · גיליון "' + d.sheetName + '" · ' + fmtInt.format(d.rowCount) + ' שורות', section);
+    barChartH(sh.body, { items: top.map(r => ({ name: r.name, val: r.val })), fmt: v => fmtCompact.format(v) });
+    addTableToggle(sh.body, [d.agg.label, d.agg.value],
+      d.agg.items.slice(0, 60).map(r => [r.name, Math.round(r.val)]));
+    slides.push(sh);
+  } else {
+    const sh = slideShell(section, 'תצוגת נתונים', 'לא זוהה דוח מוכר — מוצגות השורות הראשונות מגיליון "' + d.sheetName + '"', section);
+    const overlay = el('div', 'table-overlay show');
+    const table = el('table');
+    const trh = el('tr');
+    d.header.forEach(h => trh.appendChild(el('th', null, h)));
+    const thead = el('thead'); thead.appendChild(trh); table.appendChild(thead);
+    const tbody = el('tbody');
+    d.sampleRows.forEach(r => {
+      const tr = el('tr');
+      d.header.forEach((_, i) => tr.appendChild(el('td', null, r[i] === null ? '' : String(r[i]))));
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    overlay.appendChild(table);
+    sh.body.appendChild(overlay);
+    slides.push(sh);
+  }
+  return slides;
+}
+
+/* ============================================================
+   מנהל המצגת
+   ============================================================ */
+const stage = document.getElementById('stage');
+const uploadScreen = document.getElementById('uploadScreen');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const counter = document.getElementById('slideCounter');
+const topicMenu = document.getElementById('topicMenu');
+const menuBtn = document.getElementById('menuBtn');
+const newFilesBtn = document.getElementById('newFilesBtn');
+
+let slides = [];
+let current = 0;
+
+function fitSlides() {
+  const narrow = window.innerWidth <= 700;
+  // בטלפון כפתורי הניווט יושבים למטה, אז השקף מקבל כמעט את כל הרוחב
+  const availW = stage.clientWidth - (narrow ? 12 : 140);
+  const availH = stage.clientHeight - (narrow ? 64 : 50);
+  const scale = Math.min(availW / 1280, availH / 720, 1.15);
+  slides.forEach(sh => { sh.s.style.transform = `scale(${scale})`; });
+}
+window.addEventListener('resize', fitSlides);
+window.addEventListener('orientationchange', () => setTimeout(fitSlides, 250));
+
+/* החלקת אצבע בין שקפים — כיוון RTL: החלקה ימינה = השקף הבא */
+let touchX = null, touchY = null;
+stage.addEventListener('touchstart', e => {
+  if (e.touches.length !== 1) { touchX = null; return; }
+  touchX = e.touches[0].clientX;
+  touchY = e.touches[0].clientY;
+}, { passive: true });
+stage.addEventListener('touchend', e => {
+  if (touchX === null) return;
+  const dx = e.changedTouches[0].clientX - touchX;
+  const dy = e.changedTouches[0].clientY - touchY;
+  touchX = null;
+  if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return; // לא החלקה אופקית
+  if (dx > 0) goTo(current + 1); else goTo(current - 1);
+}, { passive: true });
+
+function goTo(i) {
+  if (!slides.length) return;
+  current = Math.max(0, Math.min(i, slides.length - 1));
+  slides.forEach((sh, k) => sh.s.classList.toggle('current', k === current));
+  counter.textContent = (current + 1) + ' / ' + slides.length;
+  prevBtn.disabled = current === 0;
+  nextBtn.disabled = current === slides.length - 1;
+  topicMenu.querySelectorAll('a').forEach((a, k) => a.classList.toggle('active', k === current));
+}
+
+function buildDeck(datasets) {
+  stage.textContent = '';
+  slides = [];
+  slides.push(buildBrandCoverSlide(datasets));
+  // כשנטענים כמה דוחות מאותו סוג — כל אחד מקבל כותרת מובחנת לפי שם הקובץ
+  const kindCounts = {};
+  datasets.forEach(d => { kindCounts[d.kind] = (kindCounts[d.kind] || 0) + 1; });
+  const baseTitles = { damaged: 'העברות למחסן פגומים', inventory: 'ספירות מלאי', calls: 'קריאות שירות' };
+  const shortName = (fn, base) => {
+    let s = fn.replace(/\.(xlsx|xls|xlsm|csv)$/i, '').trim();
+    if (base && s.startsWith(base)) s = s.slice(base.length).trim(); // בלי לחזור על שם הדוח
+    if (s.length > 32) s = s.slice(0, 31).trim() + '…';
+    return s || fn;
+  };
+  for (const d of datasets) {
+    let t = baseTitles[d.kind];
+    if (t && kindCounts[d.kind] > 1) t += ' — ' + shortName(d.fileName, t);
+    if (d.kind === 'damaged') slides.push(...buildDamagedSlides(d, t));
+    else if (d.kind === 'inventory') slides.push(...buildInventorySlides(d, t));
+    else if (d.kind === 'calls') slides.push(...buildServiceCallsSlides(d, t));
+    else slides.push(...buildGenericSlides(d));
+  }
+  slides.forEach((sh, i) => {
+    const pn = sh.s.querySelector('.page-num');
+    if (pn) pn.textContent = (i + 1) + ' / ' + slides.length;
+    stage.appendChild(sh.s);
+  });
+
+  // תפריט נושאים
+  topicMenu.textContent = '';
+  let lastSection = null;
+  slides.forEach((sh, i) => {
+    if (sh.sectionName !== lastSection) {
+      topicMenu.appendChild(el('div', 'tm-section', sh.sectionName));
+      lastSection = sh.sectionName;
+    }
+    const a = el('a', null, sh.title || sh.s.querySelector('h2')?.textContent || 'שקף ' + (i + 1));
+    a.href = '#';
+    a.addEventListener('click', e => { e.preventDefault(); goTo(i); topicMenu.classList.remove('open'); });
+    topicMenu.appendChild(a);
+  });
+
+  uploadScreen.style.display = 'none';
+  stage.classList.add('active');
+  prevBtn.classList.add('show');
+  nextBtn.classList.add('show');
+  counter.classList.add('show');
+  menuBtn.style.display = '';
+  newFilesBtn.style.display = '';
+  fitSlides();
+  goTo(0);
+}
+
+/* ניווט מקלדת — RTL: שמאלה = קדימה */
+document.addEventListener('keydown', e => {
+  if (!stage.classList.contains('active')) return;
+  if (e.key === 'ArrowLeft' || e.key === 'PageDown' || e.key === ' ') { e.preventDefault(); goTo(current + 1); }
+  else if (e.key === 'ArrowRight' || e.key === 'PageUp') { e.preventDefault(); goTo(current - 1); }
+  else if (e.key === 'Home') goTo(0);
+  else if (e.key === 'End') goTo(slides.length - 1);
+  else if (e.key === 'Escape') topicMenu.classList.remove('open');
+});
+prevBtn.addEventListener('click', () => goTo(current - 1));
+nextBtn.addEventListener('click', () => goTo(current + 1));
+menuBtn.addEventListener('click', () => topicMenu.classList.toggle('open'));
+
+/* ============================================================
+   העלאת קבצים
+   ============================================================ */
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const fileListEl = document.getElementById('fileList');
+const buildBtn = document.getElementById('buildBtn');
+const loadingMsg = document.getElementById('loadingMsg');
+
+const loaded = [];      // {name, dataset|null, hash, dupOf, error}
+
+// חישוב כפילויות מחדש על כל הרשימה — נדרש גם אחרי מחיקת קובץ
+function recomputeDups() {
+  const seen = new Map(); // hash תוכן -> שם הקובץ הראשון
+  for (const f of loaded) {
+    if (!f.dataset) continue;
+    if (seen.has(f.hash)) {
+      f.dupOf = seen.get(f.hash);
+      f.dataset.dupNote = f.dupOf;
+    } else {
+      seen.set(f.hash, f.name);
+      f.dupOf = null;
+      delete f.dataset.dupNote;
+    }
+  }
+}
+
+function refreshFileList() {
+  fileListEl.textContent = '';
+  for (const f of loaded) {
+    const row = el('div', 'file-row');
+    row.appendChild(el('span', 'fname', f.name));
+    let type, cls = '';
+    if (f.error) { type = 'שגיאה בקריאה'; cls = 'err'; }
+    else if (f.dataset.kind === 'damaged') type = 'העברות פגומים';
+    else if (f.dataset.kind === 'inventory') type = 'ספירות מלאי';
+    else if (f.dataset.kind === 'calls') type = 'קריאות שירות';
+    else type = 'קובץ כללי';
+    const tag = el('span', 'ftype' + (cls ? ' ' + cls : ''), type);
+    if (f.dupOf) tag.title = 'התוכן זהה לחלוטין ל: ' + f.dupOf + ' — כדאי לבדוק את הייצוא במקור';
+    row.appendChild(tag);
+
+    // מחיקת הקובץ מהרשימה — מאפשר להעלות גרסה מעודכנת בלי לרענן את הדף
+    const delBtn = el('button', 'del-btn');
+    delBtn.title = 'הסר את הקובץ מהרשימה';
+    delBtn.setAttribute('aria-label', 'הסר את ' + f.name);
+    delBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>';
+    const idx = loaded.indexOf(f);
+    delBtn.addEventListener('click', () => {
+      loaded.splice(idx, 1);
+      recomputeDups();
+      refreshFileList();
+    });
+    row.appendChild(delBtn);
+    fileListEl.appendChild(row);
+  }
+  buildBtn.disabled = !loaded.some(f => f.dataset);
+}
+
+async function handleFiles(files) {
+  if (!files.length) return;
+  loadingMsg.classList.add('show');
+  await new Promise(r => setTimeout(r, 30)); // לתת למסך הטעינה להצטייר
+  for (const file of files) {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: 'array' });
+      const dataset = detectAndParse(wb, file.name);
+      // זיהוי כפילויות לפי התוכן המפוענח — גם קבצים עם שם שונה אך נתונים זהים
+      const { fileName, ...content } = dataset;
+      const h = hashString(JSON.stringify(content));
+      loaded.push({ name: file.name, dataset, hash: h, dupOf: null });
+    } catch (err) {
+      console.error(err);
+      loaded.push({ name: file.name, dataset: null, hash: null, dupOf: null, error: true });
+    }
+  }
+  recomputeDups();
+  loadingMsg.classList.remove('show');
+  refreshFileList();
+}
+
+dropzone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => { handleFiles([...fileInput.files]); fileInput.value = ''; });
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('dragover');
+  handleFiles([...e.dataTransfer.files].filter(f => /\.(xlsx|xls|xlsm|csv)$/i.test(f.name)));
+});
+
+buildBtn.addEventListener('click', () => {
+  const datasets = loaded.filter(f => f.dataset).map(f => f.dataset);
+  // סדר קבוע: פגומים, ספירות, כלליים
+  const order = { damaged: 0, inventory: 1, calls: 2, generic: 3 };
+  datasets.sort((a, b) => order[a.kind] - order[b.kind]);
+  buildDeck(datasets);
+});
+
+newFilesBtn.addEventListener('click', () => {
+  stage.classList.remove('active');
+  prevBtn.classList.remove('show');
+  nextBtn.classList.remove('show');
+  counter.classList.remove('show');
+  menuBtn.style.display = 'none';
+  newFilesBtn.style.display = 'none';
+  topicMenu.classList.remove('open');
+  uploadScreen.style.display = '';
+});
+
+document.getElementById('logoutBtn').addEventListener('click', () => {
+  sessionStorage.removeItem('gs_auth');
+  location.href = 'login.html';
+});
+</script>
+</body>
+</html>
