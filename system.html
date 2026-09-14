@@ -135,6 +135,20 @@
     padding: 30px;
   }
 
+  .upload-logo {
+    height: 74px;
+    margin-bottom: 8px;
+  }
+
+  .upload-copyright {
+    position: absolute;
+    bottom: 18px;
+    left: 0; right: 0;
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255,255,255,.5);
+  }
+
   /* ===================== שקף פתיחה ממותג ===================== */
   .slide.brand-cover {
     background: #37485a;
@@ -588,6 +602,7 @@
 
 <!-- מסך העלאה -->
 <section id="uploadScreen">
+  <img class="upload-logo" src="novolog-logo-white.png" alt="Novolog Logistics">
   <div class="dropzone" id="dropzone">
     <div class="dz-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="#3c4d5c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -600,6 +615,7 @@
   </div>
   <div id="fileList"></div>
   <button id="buildBtn" disabled>צור מצגת</button>
+  <div class="upload-copyright">© 2026 כל הזכויות שמורות ל־Novolog Ltd</div>
 </section>
 
 <!-- במת מצגת -->
