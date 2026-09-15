@@ -1847,17 +1847,18 @@ async function exportToPptx() {
     valGridLine: { color: C.grid, size: 1 }, catGridLine: { style: 'none' },
     showLegend: false, showTitle: false,
   };
+  // כיוון עברי: ציר הקטגוריות רץ מימין לשמאל (maxMin), ועמודות אופקיות גדלות מימין לשמאל
   const col = (s, labels, values, o = {}) =>
     s.addChart(pptx.ChartType.bar, [{ name: o.seriesName || 'ערך', labels, values }],
-      { ...baseOpts, barDir: 'col', showValue: true, ...o });
+      { ...baseOpts, barDir: 'col', showValue: true, catAxisOrientation: 'maxMin', ...o });
   const hbar = (s, items, o = {}) => {
     const rev = [...items].reverse(); // בגרף אופקי הקטגוריה הראשונה למטה — הופכים כדי שהגדול יהיה למעלה
     s.addChart(pptx.ChartType.bar, [{ name: o.seriesName || 'ערך', labels: rev.map(i => i.name), values: rev.map(i => i.val) }],
-      { ...baseOpts, barDir: 'bar', showValue: true, ...o });
+      { ...baseOpts, barDir: 'bar', showValue: true, valAxisOrientation: 'maxMin', ...o });
   };
   const lineP = (s, labels, values, o = {}) =>
     s.addChart(pptx.ChartType.line, [{ name: o.seriesName || 'ערך', labels, values }],
-      { ...baseOpts, lineSize: 2, lineDataSymbol: 'circle', lineDataSymbolSize: 8, showValue: true, dataLabelPosition: 't', ...o });
+      { ...baseOpts, lineSize: 2, lineDataSymbol: 'circle', lineDataSymbolSize: 8, showValue: true, dataLabelPosition: 't', catAxisOrientation: 'maxMin', ...o });
 
   function kpiBoxes(s, kpis) {
     const bw = 2.85, gap = 0.25;
@@ -2006,7 +2007,7 @@ async function exportToPptx() {
       chartSlide(sec, 'קריאות לפי חודש — מוצדק מול לא מוצדק')
         .addChart(pptx.ChartType.bar,
           d.justKinds.map(k => ({ name: k, labels: d.byMonth.map(r => monthLabel(r.m)), values: d.byMonth.map(r => r[k] || 0) })),
-          { ...baseOpts, barDir: 'col', showValue: true, dataLabelFormatCode: INT_FMT,
+          { ...baseOpts, barDir: 'col', showValue: true, dataLabelFormatCode: INT_FMT, catAxisOrientation: 'maxMin',
             chartColors: d.justKinds.map((k, i) => groupColors[i % groupColors.length]),
             showLegend: true, legendPos: 'b', legendFontSize: 12, legendColor: C.ink2, legendFontFace: FONT });
 
