@@ -1525,7 +1525,7 @@ function buildInventorySlides(d, sectionTitle) {
     wrap.appendChild(el('div', 's-sub', period));
     const kpis = el('div', 'kpi-row');
     [
-      { label: 'סה"כ ספירות', value: fmtInt.format(d.total), note: period },
+      { label: 'סה״כ ספירות', value: fmtInt.format(d.total), note: period },
       { label: 'ספירות עם הפרש', value: fmtInt.format(d.diffRows), note: fmtPct(100 * d.diffRows / d.total) + ' מהספירות' },
       { label: 'דיוק ספירה', value: fmtPct(accuracy), note: 'ספירות ללא הפרש' },
       { label: 'כמות הפרש מוחלטת', value: fmtCompact.format(d.absQty), note: 'יחידות' },
@@ -1647,7 +1647,7 @@ function buildServiceCallsSlides(d, sectionTitle) {
     wrap.appendChild(el('div', 's-sub', period));
     const kpis = el('div', 'kpi-row');
     [
-      { label: 'סה"כ קריאות', value: fmtInt.format(d.totalCalls), note: fmtInt.format(d.totalLines) + ' שורות פריט' },
+      { label: 'סה״כ קריאות', value: fmtInt.format(d.totalCalls), note: fmtInt.format(d.totalLines) + ' שורות פריט' },
       { label: 'קריאות מוצדקות', value: fmtInt.format(just), note: fmtPct(justPct) + ' מהקריאות המסווגות' },
       { label: 'קריאות לא מוצדקות', value: fmtInt.format(unjust), note: '' },
       { label: 'קריאות שירות', value: fmtInt.format(d.justTotals['שירות'] || 0), note: 'ללא סיווג הצדקה' },
@@ -1675,7 +1675,7 @@ function buildServiceCallsSlides(d, sectionTitle) {
       })),
       fmt: v => fmtInt.format(v),
     });
-    addTableToggle(sh.body, ['חודש', ...d.justKinds, 'סה"כ'],
+    addTableToggle(sh.body, ['חודש', ...d.justKinds, 'סה״כ'],
       d.byMonth.map(r => [monthLabel(r.m), ...d.justKinds.map(k => r[k] || 0),
         d.justKinds.reduce((s2, k) => s2 + (r[k] || 0), 0)]));
     slides.push(sh);
@@ -1867,11 +1867,12 @@ async function exportToPptx() {
     const startR = (W - total) / 2;
     kpis.forEach((k, i) => {
       const bx = W - startR - (i + 1) * bw - i * gap; // RTL: הראשון מימין
+      // rtlMode חייב להיות על כל קטע טקסט בנפרד — אחרת גרשיים ומקפים שוברים את סדר המילים
       const runs = [
-        { text: k.label + '\n', options: { fontSize: 12, color: C.ink2, bold: true, breakLine: true } },
-        { text: k.value, options: { fontSize: 26, color: C.brand, bold: true } },
+        { text: k.label + '\n', options: { fontSize: 12, color: C.ink2, bold: true, breakLine: true, rtlMode: true, lang: 'he-IL' } },
+        { text: k.value, options: { fontSize: 26, color: C.brand, bold: true } }, // שורת מספר — פסקת LTR כדי ש-K/M לא יתהפכו
       ];
-      if (k.note) runs.push({ text: '\n' + k.note, options: { fontSize: 10, color: C.muted } });
+      if (k.note) runs.push({ text: '\n' + k.note, options: { fontSize: 10, color: C.muted, rtlMode: true, lang: 'he-IL' } });
       s.addText(runs, { shape: pptx.ShapeType.roundRect, rectRadius: 0.08,
         fill: { color: 'F6F8FA' }, line: { color: C.grid, width: 1 },
         x: bx, y: 4.3, w: bw, h: 1.9, align: 'center', valign: 'middle', fontFace: FONT, rtlMode: true });
@@ -1914,6 +1915,7 @@ async function exportToPptx() {
   const short = (fn, base) => {
     let t = fn.replace(/\.(xlsx|xls|xlsm|csv)$/i, '').trim();
     if (base && t.startsWith(base)) t = t.slice(base.length).trim();
+    t = t.replace(/[()]/g, '').replace(/\s+/g, ' ').trim(); // סוגריים מתהפכים ב-PowerPoint בפסקה עברית — מסירים
     if (t.length > 32) {
       t = t.slice(0, 32);
       const sp = t.lastIndexOf(' '); // חיתוך בגבול מילה שלמה
@@ -1966,7 +1968,7 @@ async function exportToPptx() {
       const period = periodLabel(d.months);
       const accuracy = 100 * (1 - d.diffRows / d.total);
       sectionCover(sec, period, [
-        { label: 'סה"כ ספירות', value: fmtInt.format(d.total), note: period },
+        { label: 'סה״כ ספירות', value: fmtInt.format(d.total), note: period },
         { label: 'ספירות עם הפרש', value: fmtInt.format(d.diffRows), note: fmtPct(100 * d.diffRows / d.total) + ' מהספירות' },
         { label: 'דיוק ספירה', value: fmtPct(accuracy), note: 'ספירות ללא הפרש' },
         { label: 'כמות הפרש מוחלטת', value: fmtCompact.format(d.absQty), note: 'יחידות' },
@@ -1998,7 +2000,7 @@ async function exportToPptx() {
       const period = periodLabel(d.months);
       const just = d.justTotals['מוצדק'] || 0, unjust = d.justTotals['לא מוצדק'] || 0;
       sectionCover(sec, period, [
-        { label: 'סה"כ קריאות', value: fmtInt.format(d.totalCalls), note: fmtInt.format(d.totalLines) + ' שורות פריט' },
+        { label: 'סה״כ קריאות', value: fmtInt.format(d.totalCalls), note: fmtInt.format(d.totalLines) + ' שורות פריט' },
         { label: 'קריאות מוצדקות', value: fmtInt.format(just), note: just + unjust ? fmtPct(100 * just / (just + unjust)) + ' מהמסווגות' : '' },
         { label: 'קריאות לא מוצדקות', value: fmtInt.format(unjust) },
         { label: 'קריאות שירות', value: fmtInt.format(d.justTotals['שירות'] || 0), note: 'ללא סיווג הצדקה' },
