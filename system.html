@@ -1811,6 +1811,7 @@ let currentDatasets = [];
 async function exportToPptx() {
   const pptx = new PptxGenJS();
   pptx.layout = 'LAYOUT_WIDE';
+  pptx.rtlMode = true; // המצגת נפתחת ב-PowerPoint במצב ימין-לשמאל (עברית)
   const C = { bg: '37485A', brand: '3C4D5C', accent: 'FFCA0F', s1: '2F66A5', s2: 'B8860B', s3: '159D7F',
               ink2: '52616E', muted: '8794A0', grid: 'E7EAEE', green: '3AAB4F', blue: '4BB8E8' };
   const FONT = 'Arial';
