@@ -188,6 +188,12 @@
     color: #fff;
     line-height: 1.15;
   }
+  .brand-cover .bc-title .bc-dept {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-top: 8px;
+  }
   .brand-cover .bc-title .bc-sub {
     font-size: 22px;
     color: rgba(255,255,255,.75);
@@ -1368,7 +1374,8 @@ function buildBrandCoverSlide(datasets) {
   s.appendChild(hero);
 
   const title = el('div', 'bc-title');
-  title.appendChild(el('h2', null, 'מצגת נתונים'));
+  title.appendChild(el('h2', null, 'ישיבת מנהלים'));
+  title.appendChild(el('div', 'bc-dept', 'אגף תפעול ומצוינות ארגונית'));
   const names = datasets.map(d =>
     d.kind === 'damaged' ? 'העברות למחסן פגומים' :
     d.kind === 'inventory' ? 'ספירות מלאי' :
@@ -1884,14 +1891,15 @@ async function exportToPptx() {
   cover.background = { color: C.bg };
   const logoData = await imgToDataURL('novolog-logo-white.png');
   if (logoData) cover.addImage({ data: logoData, x: 0.55, y: 0.5, w: 2.55, h: 1.08 });
-  cover.addText('מצגת נתונים', { x: 0.6, y: 2.9, w: W - 1.2, h: 1.1, fontSize: 48, color: 'FFFFFF', bold: true, align: 'right', fontFace: FONT, rtlMode: true });
+  cover.addText('ישיבת מנהלים', { x: 0.6, y: 2.5, w: W - 1.2, h: 1.0, fontSize: 46, color: 'FFFFFF', bold: true, align: 'right', fontFace: FONT, rtlMode: true });
+  cover.addText('אגף תפעול ומצוינות ארגונית', { x: 0.6, y: 3.5, w: W - 1.2, h: 0.6, fontSize: 26, color: C.accent, bold: true, align: 'right', fontFace: FONT, rtlMode: true });
   const secNames = [...new Set(currentDatasets.map(d =>
     d.kind === 'damaged' ? 'העברות למחסן פגומים' :
     d.kind === 'inventory' ? 'ספירות מלאי' :
     d.kind === 'calls' ? 'קריאות שירות' : 'נתונים'))];
   const dateStr = new Date().toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' });
-  cover.addText(secNames.join(' · '), { x: 0.6, y: 4.05, w: W - 1.2, h: 0.5, fontSize: 18, color: 'D9DEE3', align: 'right', fontFace: FONT, rtlMode: true });
-  cover.addText('הופק בתאריך ' + dateStr, { x: 0.6, y: 4.5, w: W - 1.2, h: 0.5, fontSize: 14, color: 'AEB9C2', align: 'right', fontFace: FONT, rtlMode: true });
+  cover.addText(secNames.join(' · '), { x: 0.6, y: 4.35, w: W - 1.2, h: 0.5, fontSize: 18, color: 'D9DEE3', align: 'right', fontFace: FONT, rtlMode: true });
+  cover.addText('הופק בתאריך ' + dateStr, { x: 0.6, y: 4.8, w: W - 1.2, h: 0.5, fontSize: 14, color: 'AEB9C2', align: 'right', fontFace: FONT, rtlMode: true });
   cover.addShape(pptx.ShapeType.rect, { x: 0, y: H - 1.35, w: W, h: 1.35, fill: { color: 'FFFFFF' }, line: { type: 'none' } });
   cover.addShape(pptx.ShapeType.rect, { x: 0, y: H - 1.12, w: 0.65, h: 1.12, fill: { color: C.accent }, line: { type: 'none' } });
   cover.addShape(pptx.ShapeType.rect, { x: 0.85, y: H - 1.12, w: 2.1, h: 1.12, fill: { color: C.green }, line: { type: 'none' } });
@@ -2029,7 +2037,7 @@ async function exportToPptx() {
     }
   }
 
-  await pptx.writeFile({ fileName: 'מצגת נתונים.pptx' });
+  await pptx.writeFile({ fileName: 'ישיבת מנהלים אגף תפעול ומצוינות ארגונית.pptx' });
 }
 
 /* ============================================================
